@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import {BaseTest, console} from "./base/BaseTest.sol";
 
-contract ContractTest is BaseTest {
+contract SwapperTest is BaseTest {
     function setUp() public {}
 
     function testExample() public {
