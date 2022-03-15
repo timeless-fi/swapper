@@ -23,20 +23,10 @@ abstract contract Swapper is Multicall, SelfPermit {
     error Error_PastDeadline();
 
     /// -----------------------------------------------------------------------
-    /// Enums
-    /// -----------------------------------------------------------------------
-
-    enum SwapType {
-        XPYT,
-        NYT
-    }
-
-    /// -----------------------------------------------------------------------
     /// Structs
     /// -----------------------------------------------------------------------
 
     struct SwapArgs {
-        SwapType swapType;
         ERC4626 xPYT;
         uint256 tokenAmountIn;
         uint256 minAmountOut;
@@ -50,12 +40,22 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// Swaps
     /// -----------------------------------------------------------------------
 
-    function swapUnderlyingToYieldToken(SwapArgs calldata args)
+    function swapUnderlyingToXPYT(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
 
-    function swapYieldTokenToUnderlying(SwapArgs calldata args)
+    function swapUnderlyingToNYT(SwapArgs calldata args)
+        external
+        virtual
+        returns (uint256 tokenAmountOut);
+
+    function swapXPYTToUnderlying(SwapArgs calldata args)
+        external
+        virtual
+        returns (uint256 tokenAmountOut);
+
+    function swapNYTToUnderlying(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
