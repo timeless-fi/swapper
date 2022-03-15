@@ -8,6 +8,13 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {Multicall} from "timeless/lib/Multicall.sol";
 import {SelfPermit} from "timeless/lib/SelfPermit.sol";
 
+/// @title Swapper
+/// @author zefram.eth
+/// @notice Abstract contract for swapping between xPYTs/NYTs and their underlying asset by
+/// swapping via an external DEX and minting/burning xPYT/NYT.
+/// @dev Swapper supports two-hop swaps where one of the swaps is an 0x swap between two regular tokens,
+/// which enables swapping any supported token into any xPYT/NYT. Two-hop swaps are done by chaining
+/// two calls together via Multicall and setting the recipient of the first swap to the Swapper.
 abstract contract Swapper is Multicall, SelfPermit {
     /// -----------------------------------------------------------------------
     /// Library usage
@@ -19,13 +26,21 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// Errors
     /// -----------------------------------------------------------------------
 
-    error Error_InsufficientOutput();
     error Error_PastDeadline();
+    error Error_InsufficientOutput();
 
     /// -----------------------------------------------------------------------
     /// Structs
     /// -----------------------------------------------------------------------
 
+    /// @param xPYT The xPYT contract linked to the xPYT/NYT being swapped.
+    /// @param tokenAmountIn The amount of token input
+    /// @param minAmountOut The minimum acceptable token output amount, used for slippage checking.
+    /// @param recipient The recipient of the token output
+    /// @param useSwapperBalance Set to true to use the Swapper's token balance as token input, in which
+    /// case `tokenAmountIn` will be overriden to the balance.
+    /// @param deadline The Unix timestamp (in seconds) on or after which the call will be reverted
+    /// @param extraArgs Used for providing extra input parameters for different protocols/use cases
     struct SwapArgs {
         ERC4626 xPYT;
         uint256 tokenAmountIn;
@@ -40,21 +55,33 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// Swaps
     /// -----------------------------------------------------------------------
 
+    /// @notice Swaps the underlying asset of an xPYT into the xPYT
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @return tokenAmountOut The amount of token output
     function swapUnderlyingToXPYT(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
 
+    /// @notice Swaps the underlying asset of an NYT into the NYT
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @return tokenAmountOut The amount of token output
     function swapUnderlyingToNYT(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
 
+    /// @notice Swaps an xPYT to its underlying asset
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @return tokenAmountOut The amount of token output
     function swapXPYTToUnderlying(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
 
+    /// @notice Swaps an NYT to its underlying asset
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @return tokenAmountOut The amount of token output
     function swapNYTToUnderlying(SwapArgs calldata args)
         external
         virtual
@@ -64,24 +91,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// 0x support
     /// -----------------------------------------------------------------------
 
-    function do0xSwap() external virtual {}
-
-    /// -----------------------------------------------------------------------
-    /// Internal utilities
-    /// -----------------------------------------------------------------------
-
-    function _pay(
-        ERC20 token,
-        address payer,
-        address recipient,
-        uint256 value
-    ) internal {
-        if (payer == address(this)) {
-            // pay with tokens already in the contract
-            token.safeTransfer(recipient, value);
-        } else {
-            // pull payment
-            token.safeTransferFrom(payer, recipient, value);
-        }
-    }
+    /// @notice Swaps between two regular tokens using 0x.
+    /// @return tokenAmountOut The amount of token output
+    function do0xSwap() external virtual returns (uint256 tokenAmountOut) {}
 }
