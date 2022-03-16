@@ -86,7 +86,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         returns (uint256 tokenAmountOut)
     {
         // check deadline
-        if (block.timestamp >= args.deadline) {
+        if (block.timestamp > args.deadline) {
             revert Error_PastDeadline();
         }
 
@@ -165,7 +165,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         returns (uint256 tokenAmountOut)
     {
         // check deadline
-        if (block.timestamp >= args.deadline) {
+        if (block.timestamp > args.deadline) {
             revert Error_PastDeadline();
         }
 

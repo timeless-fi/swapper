@@ -39,7 +39,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// @param recipient The recipient of the token output
     /// @param useSwapperBalance Set to true to use the Swapper's token balance as token input, in which
     /// case `tokenAmountIn` will be overriden to the balance.
-    /// @param deadline The Unix timestamp (in seconds) on or after which the call will be reverted
+    /// @param deadline The Unix timestamp (in seconds) after which the call will be reverted
     /// @param extraArgs Used for providing extra input parameters for different protocols/use cases
     struct SwapArgs {
         ERC4626 xPYT;

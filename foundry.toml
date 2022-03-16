@@ -1,6 +1,7 @@
 [default]
 ffi = false
 fuzz_runs = 256
+gas_reports = ["UniswapV3Swapper"]
 optimizer = true
 optimizer_runs = 1000000
 remappings = [
@@ -11,8 +12,8 @@ remappings = [
   "v3-core/=lib/v3-core/contracts/",
   "v3-periphery/=lib/v3-periphery/contracts/",
 ]
+solc_version = "0.8.11"
 verbosity = 1
-solc_version = '0.8.11'
 
 # Extreme Fuzzing CI Profile :P
 [ci]
