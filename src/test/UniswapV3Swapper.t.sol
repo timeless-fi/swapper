@@ -190,6 +190,56 @@ contract UniswapV3SwapperTest is
         );
     }
 
+    function testBasic_swapUnderlyingToNYT() public {
+        uint256 tokenAmountIn = AMOUNT / 10;
+        Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
+            xPYT: xPYT,
+            tokenAmountIn: tokenAmountIn,
+            minAmountOut: 0,
+            recipient: recipient,
+            useSwapperBalance: false,
+            deadline: block.timestamp,
+            extraArgs: abi.encode(UNI_FEE)
+        });
+        uint256 tokenAmountOut = swapper.swapUnderlyingToNYT(args);
+
+        assertGtDecimal(tokenAmountOut, 0, 18, "tokenAmountOut is zero");
+        assertEqDecimal(
+            underlying.balanceOf(address(this)),
+            AMOUNT - tokenAmountIn,
+            18,
+            "underlying balance of address(this) incorrect"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(address(swapper)),
+            0,
+            18,
+            "swapper has non-zero underlying"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(address(swapper)),
+            0,
+            18,
+            "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(address(swapper)),
+            0,
+            18,
+            "swapper has non-zero xPYT"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(recipient),
+            tokenAmountOut,
+            18,
+            "recipient didn't get token output"
+        );
+    }
+
     /// -----------------------------------------------------------------------
     /// Uniswap V3 add liquidity support
     /// -----------------------------------------------------------------------
