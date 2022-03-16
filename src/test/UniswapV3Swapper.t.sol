@@ -112,7 +112,7 @@ contract UniswapV3SwapperTest is
         (address token0, address token1) = address(nyt) < address(xPYT)
             ? (address(nyt), address(xPYT))
             : (address(xPYT), address(nyt));
-        addLiquidity(
+        _addLiquidity(
             AddLiquidityParams({
                 token0: token0,
                 token1: token1,
@@ -295,7 +295,7 @@ contract UniswapV3SwapperTest is
     }
 
     /// @notice Add liquidity to an initialized pool
-    function addLiquidity(AddLiquidityParams memory params)
+    function _addLiquidity(AddLiquidityParams memory params)
         internal
         returns (
             uint128 liquidity,
