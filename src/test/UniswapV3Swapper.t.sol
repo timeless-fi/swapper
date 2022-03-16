@@ -143,6 +143,10 @@ contract UniswapV3SwapperTest is
     function testBasic_swapUnderlyingToXPYT() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
             xPYT: xPYT,
             tokenAmountIn: tokenAmountIn,
             minAmountOut: 0,

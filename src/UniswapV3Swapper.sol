@@ -31,6 +31,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// -----------------------------------------------------------------------
 
     error Error_NotUniswapV3Pool();
+    error Error_BothTokenDeltasAreZero();
 
     /// -----------------------------------------------------------------------
     /// Structs
@@ -78,7 +79,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @inheritdoc Swapper
     /// @dev extraArg = (uint24 fee)
     /// fee: The fee tier of the Uniswap V3 pool to use
-    function swapUnderlyingToXPYT(SwapArgs calldata args)
+    function swapUnderlyingToNYT(SwapArgs calldata args)
         external
         virtual
         override
@@ -90,29 +91,17 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             revert Error_PastDeadline();
         }
 
-        ERC20 nyt;
-        uint256 tokenAmountIn;
+        uint256 xPYTMinted;
         {
-            // fetch gate contracts
-            Gate gate;
-            address vault;
-            {
-                BaseERC20 pyt = BaseERC20(address(args.xPYT.asset()));
-                gate = pyt.gate();
-                vault = pyt.vault();
-            }
-            ERC20 underlying = gate.getUnderlyingOfVault(vault);
-            nyt = ERC20(address(gate.getNegativeYieldTokenForVault(vault)));
-
             // determine token input and output amounts
-            tokenAmountIn = args.useSwapperBalance
-                ? underlying.balanceOf(address(this))
+            uint256 tokenAmountIn = args.useSwapperBalance
+                ? args.underlying.balanceOf(address(this))
                 : args.tokenAmountIn;
-            tokenAmountOut = args.xPYT.previewDeposit(tokenAmountIn);
+            tokenAmountOut = tokenAmountIn;
 
             // transfer underlying from sender
             if (!args.useSwapperBalance) {
-                underlying.safeTransferFrom(
+                args.underlying.safeTransferFrom(
                     msg.sender,
                     address(this),
                     tokenAmountIn
@@ -120,28 +109,32 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             }
 
             // use underlying to mint xPYT & NYT
+            xPYTMinted = args.xPYT.previewDeposit(tokenAmountIn);
             if (
-                underlying.allowance(address(this), address(gate)) <
+                args.underlying.allowance(address(this), address(args.gate)) <
                 tokenAmountIn
             ) {
-                underlying.safeApprove(address(gate), type(uint256).max);
+                args.underlying.safeApprove(
+                    address(args.gate),
+                    type(uint256).max
+                );
             }
-            gate.enterWithUnderlying(
-                address(this), // nytRecipient
-                args.recipient, // pytRecipient
-                vault,
+            args.gate.enterWithUnderlying(
+                args.recipient, // nytRecipient
+                address(this), // pytRecipient
+                args.vault,
                 args.xPYT,
                 tokenAmountIn
             );
         }
 
-        // swap NYT to xPYT
+        // swap xPYT to NYT
         {
             uint24 fee = abi.decode(args.extraArgs, (uint24));
             tokenAmountOut += _swap(
-                nyt,
-                tokenAmountIn,
                 args.xPYT,
+                xPYTMinted,
+                args.nyt,
                 fee,
                 address(this),
                 args.recipient
@@ -157,7 +150,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @inheritdoc Swapper
     /// @dev extraArg = (uint24 fee)
     /// fee: The fee tier of the Uniswap V3 pool to use
-    function swapUnderlyingToNYT(SwapArgs calldata args)
+    function swapUnderlyingToXPYT(SwapArgs calldata args)
         external
         virtual
         override
@@ -169,29 +162,17 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             revert Error_PastDeadline();
         }
 
-        ERC20 nyt;
-        uint256 xPYTMinted;
+        uint256 tokenAmountIn;
         {
-            // fetch gate contracts
-            Gate gate;
-            address vault;
-            {
-                BaseERC20 pyt = BaseERC20(address(args.xPYT.asset()));
-                gate = pyt.gate();
-                vault = pyt.vault();
-            }
-            ERC20 underlying = gate.getUnderlyingOfVault(vault);
-            nyt = ERC20(address(gate.getNegativeYieldTokenForVault(vault)));
-
             // determine token input and output amounts
-            uint256 tokenAmountIn = args.useSwapperBalance
-                ? underlying.balanceOf(address(this))
+            tokenAmountIn = args.useSwapperBalance
+                ? args.underlying.balanceOf(address(this))
                 : args.tokenAmountIn;
-            tokenAmountOut = tokenAmountIn;
+            tokenAmountOut = args.xPYT.previewDeposit(tokenAmountIn);
 
             // transfer underlying from sender
             if (!args.useSwapperBalance) {
-                underlying.safeTransferFrom(
+                args.underlying.safeTransferFrom(
                     msg.sender,
                     address(this),
                     tokenAmountIn
@@ -199,29 +180,31 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             }
 
             // use underlying to mint xPYT & NYT
-            xPYTMinted = args.xPYT.previewDeposit(tokenAmountIn);
             if (
-                underlying.allowance(address(this), address(gate)) <
+                args.underlying.allowance(address(this), address(args.gate)) <
                 tokenAmountIn
             ) {
-                underlying.safeApprove(address(gate), type(uint256).max);
+                args.underlying.safeApprove(
+                    address(args.gate),
+                    type(uint256).max
+                );
             }
-            gate.enterWithUnderlying(
-                args.recipient, // nytRecipient
-                address(this), // pytRecipient
-                vault,
+            args.gate.enterWithUnderlying(
+                address(this), // nytRecipient
+                args.recipient, // pytRecipient
+                args.vault,
                 args.xPYT,
                 tokenAmountIn
             );
         }
 
-        // swap xPYT to NYT
+        // swap NYT to xPYT
         {
             uint24 fee = abi.decode(args.extraArgs, (uint24));
             tokenAmountOut += _swap(
+                args.nyt,
+                tokenAmountIn,
                 args.xPYT,
-                xPYTMinted,
-                nyt,
                 fee,
                 address(this),
                 args.recipient
@@ -231,6 +214,82 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         // check slippage
         if (tokenAmountOut < args.minAmountOut) {
             revert Error_InsufficientOutput();
+        }
+    }
+
+    /// @inheritdoc Swapper
+    /// @dev extraArg = (uint24 fee, uint256 swapAmountIn)
+    /// fee: The fee tier of the Uniswap V3 pool to use
+    /// swapAmountIn: The amount of NYT to swap to xPYT
+    function swapNYTToUnderlying(SwapArgs calldata args)
+        external
+        virtual
+        override
+        nonReentrant
+        returns (uint256 tokenAmountOut)
+    {
+        // check deadline
+        if (block.timestamp >= args.deadline) {
+            revert Error_PastDeadline();
+        }
+
+        // swap NYT to xPYT
+        uint256 swapAmountOut;
+        uint256 swapAmountIn;
+        {
+            uint24 fee;
+            (fee, swapAmountIn) = abi.decode(args.extraArgs, (uint24, uint256));
+            swapAmountOut = _swap(
+                args.nyt,
+                swapAmountIn,
+                args.xPYT,
+                fee,
+                msg.sender,
+                address(this)
+            );
+        }
+
+        // determine token output amount
+        uint256 remainingAmountIn = args.useSwapperBalance
+            ? args.nyt.balanceOf(address(this))
+            : args.tokenAmountIn - swapAmountIn;
+        if (remainingAmountIn < swapAmountOut) {
+            // NYT burnt < xPYT balance
+            tokenAmountOut = remainingAmountIn;
+        } else {
+            // NYT balance >= xPYT burnt
+            tokenAmountOut = swapAmountOut;
+        }
+
+        // burn xPYT & NYT into underlying
+        if (
+            args.xPYT.allowance(address(this), address(args.gate)) <
+            tokenAmountOut
+        ) {
+            args.xPYT.safeApprove(address(args.gate), type(uint256).max);
+        }
+        args.gate.exitToUnderlying(
+            args.recipient,
+            args.vault,
+            args.xPYT,
+            tokenAmountOut
+        );
+
+        // handle leftover tokens
+        if (remainingAmountIn < swapAmountOut) {
+            // NYT burnt < xPYT balance
+            // give leftover xPYT to recipient
+            args.xPYT.safeTransfer(
+                args.recipient,
+                args.xPYT.balanceOf(address(this))
+            );
+        } else {
+            // NYT balance >= xPYT burnt
+            // give leftover NYT to recipient
+            args.nyt.safeTransfer(
+                args.recipient,
+                args.nyt.balanceOf(address(this))
+            );
         }
     }
 
@@ -250,16 +309,6 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             revert Error_PastDeadline();
         }
 
-        // fetch gate contracts
-        Gate gate;
-        address vault;
-        {
-            BaseERC20 pyt = BaseERC20(address(args.xPYT.asset()));
-            gate = pyt.gate();
-            vault = pyt.vault();
-        }
-        ERC20 nyt = ERC20(address(gate.getNegativeYieldTokenForVault(vault)));
-
         // swap xPYT to NYT
         uint256 swapAmountOut;
         uint256 swapAmountIn;
@@ -269,7 +318,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
             swapAmountOut = _swap(
                 args.xPYT,
                 swapAmountIn,
-                nyt,
+                args.nyt,
                 fee,
                 msg.sender,
                 address(this)
@@ -290,13 +339,21 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         }
 
         // burn xPYT & NYT into underlying
-        gate.exitToUnderlying(args.recipient, vault, args.xPYT, tokenAmountOut);
+        args.gate.exitToUnderlying(
+            args.recipient,
+            args.vault,
+            args.xPYT,
+            tokenAmountOut
+        );
 
         // handle leftover tokens
         if (remainingAmountIn < swapAmountOut) {
             // xPYT burnt < NYT balance
             // give leftover NYT to recipient
-            nyt.safeTransfer(args.recipient, nyt.balanceOf(address(this)));
+            args.nyt.safeTransfer(
+                args.recipient,
+                args.nyt.balanceOf(address(this))
+            );
         } else {
             // xPYT balance >= NYT burnt
             // give leftover xPYT to recipient
@@ -304,83 +361,6 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
                 args.recipient,
                 args.xPYT.balanceOf(address(this))
             );
-        }
-    }
-
-    /// @inheritdoc Swapper
-    /// @dev extraArg = (uint24 fee, uint256 swapAmountIn)
-    /// fee: The fee tier of the Uniswap V3 pool to use
-    /// swapAmountIn: The amount of NYT to swap to xPYT
-    function swapNYTToUnderlying(SwapArgs calldata args)
-        external
-        virtual
-        override
-        nonReentrant
-        returns (uint256 tokenAmountOut)
-    {
-        // check deadline
-        if (block.timestamp >= args.deadline) {
-            revert Error_PastDeadline();
-        }
-
-        // fetch gate contracts
-        Gate gate;
-        address vault;
-        {
-            BaseERC20 pyt = BaseERC20(address(args.xPYT.asset()));
-            gate = pyt.gate();
-            vault = pyt.vault();
-        }
-        ERC20 nyt = ERC20(address(gate.getNegativeYieldTokenForVault(vault)));
-
-        // swap NYT to xPYT
-        uint256 swapAmountOut;
-        uint256 swapAmountIn;
-        {
-            uint24 fee;
-            (fee, swapAmountIn) = abi.decode(args.extraArgs, (uint24, uint256));
-            swapAmountOut = _swap(
-                nyt,
-                swapAmountIn,
-                args.xPYT,
-                fee,
-                msg.sender,
-                address(this)
-            );
-        }
-
-        // determine token output amount
-        uint256 remainingAmountIn = args.useSwapperBalance
-            ? nyt.balanceOf(address(this))
-            : args.tokenAmountIn - swapAmountIn;
-        if (remainingAmountIn < swapAmountOut) {
-            // NYT burnt < xPYT balance
-            tokenAmountOut = remainingAmountIn;
-        } else {
-            // NYT balance >= xPYT burnt
-            tokenAmountOut = swapAmountOut;
-        }
-
-        // burn xPYT & NYT into underlying
-        if (
-            args.xPYT.allowance(address(this), address(gate)) < tokenAmountOut
-        ) {
-            args.xPYT.safeApprove(address(gate), type(uint256).max);
-        }
-        gate.exitToUnderlying(args.recipient, vault, args.xPYT, tokenAmountOut);
-
-        // handle leftover tokens
-        if (remainingAmountIn < swapAmountOut) {
-            // NYT burnt < xPYT balance
-            // give leftover xPYT to recipient
-            args.xPYT.safeTransfer(
-                args.recipient,
-                args.xPYT.balanceOf(address(this))
-            );
-        } else {
-            // NYT balance >= xPYT burnt
-            // give leftover NYT to recipient
-            nyt.safeTransfer(args.recipient, nyt.balanceOf(address(this)));
         }
     }
 
@@ -394,24 +374,28 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         int256 amount1Delta,
         bytes calldata data
     ) external {
-        require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
+        // determine amount to pay
+        uint256 amountToPay;
+        if (amount0Delta > 0) {
+            amountToPay = uint256(amount0Delta);
+        } else if (amount1Delta > 0) {
+            amountToPay = uint256(amount1Delta);
+        } else {
+            revert Error_BothTokenDeltasAreZero();
+        }
 
         // decode callback data
         SwapCallbackData memory callbackData = abi.decode(
             data,
             (SwapCallbackData)
         );
-        (ERC20 tokenIn, ERC20 tokenOut) = (
-            callbackData.tokenIn,
-            callbackData.tokenOut
-        );
 
         // verify sender
         address pool = PoolAddress.computeAddress(
             uniswapV3Factory,
             PoolAddress.getPoolKey(
-                address(tokenIn),
-                address(tokenOut),
+                address(callbackData.tokenIn),
+                address(callbackData.tokenOut),
                 callbackData.fee
             )
         );
@@ -420,10 +404,17 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         }
 
         // pay tokens to the Uniswap V3 pool
-        uint256 amountToPay = amount0Delta > 0
-            ? uint256(amount0Delta)
-            : uint256(amount1Delta);
-        _pay(tokenIn, callbackData.payer, msg.sender, amountToPay);
+        if (callbackData.payer == address(this)) {
+            // pay with tokens already in the contract
+            callbackData.tokenIn.safeTransfer(msg.sender, amountToPay);
+        } else {
+            // pull payment
+            callbackData.tokenIn.safeTransferFrom(
+                callbackData.payer,
+                msg.sender,
+                amountToPay
+            );
+        }
     }
 
     /// -----------------------------------------------------------------------
@@ -472,25 +463,5 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
         );
 
         return uint256(-(zeroForOne ? amount1 : amount0));
-    }
-
-    /// @dev Pays tokens to the recipient using the payer's balance
-    /// @param token The token to pay
-    /// @param payer The address that will pay the tokens
-    /// @param recipient The address that will receive the tokens
-    /// @param value The amount of tokens to pay
-    function _pay(
-        ERC20 token,
-        address payer,
-        address recipient,
-        uint256 value
-    ) internal {
-        if (payer == address(this)) {
-            // pay with tokens already in the contract
-            token.safeTransfer(recipient, value);
-        } else {
-            // pull payment
-            token.safeTransferFrom(payer, recipient, value);
-        }
     }
 }
