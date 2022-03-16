@@ -37,8 +37,9 @@ contract UniswapV3SwapperTest is
 
     uint256 constant PROTOCOL_FEE = 100; // 10%
     uint24 constant UNI_FEE = 500;
-    uint256 constant PRECISION = 1e18;
-    uint256 constant AMOUNT = 100 * PRECISION;
+    uint8 constant DECIMALS = 18;
+    uint256 constant ONE = 10**DECIMALS;
+    uint256 constant AMOUNT = 100 * ONE;
 
     Factory factory;
     Gate gate;
@@ -65,7 +66,7 @@ contract UniswapV3SwapperTest is
         gate = new YearnGate(factory);
 
         // deploy underlying
-        underlying = new TestERC20(18);
+        underlying = new TestERC20(DECIMALS);
 
         // deploy vault
         vault = address(new TestYearnVault(underlying));
@@ -157,35 +158,35 @@ contract UniswapV3SwapperTest is
         });
         uint256 tokenAmountOut = swapper.swapUnderlyingToXPYT(args);
 
-        assertGtDecimal(tokenAmountOut, 0, 18, "tokenAmountOut is zero");
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
             underlying.balanceOf(address(this)),
             AMOUNT - tokenAmountIn,
-            18,
+            DECIMALS,
             "underlying balance of address(this) incorrect"
         );
         assertEqDecimal(
             underlying.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero underlying"
         );
         assertEqDecimal(
             nyt.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero NYT"
         );
         assertEqDecimal(
             xPYT.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero xPYT"
         );
         assertEqDecimal(
             xPYT.balanceOf(recipient),
             tokenAmountOut,
-            18,
+            DECIMALS,
             "recipient didn't get token output"
         );
     }
@@ -207,35 +208,35 @@ contract UniswapV3SwapperTest is
         });
         uint256 tokenAmountOut = swapper.swapUnderlyingToNYT(args);
 
-        assertGtDecimal(tokenAmountOut, 0, 18, "tokenAmountOut is zero");
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
             underlying.balanceOf(address(this)),
             AMOUNT - tokenAmountIn,
-            18,
+            DECIMALS,
             "underlying balance of address(this) incorrect"
         );
         assertEqDecimal(
             underlying.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero underlying"
         );
         assertEqDecimal(
             nyt.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero NYT"
         );
         assertEqDecimal(
             xPYT.balanceOf(address(swapper)),
             0,
-            18,
+            DECIMALS,
             "swapper has non-zero xPYT"
         );
         assertEqDecimal(
             nyt.balanceOf(recipient),
             tokenAmountOut,
-            18,
+            DECIMALS,
             "recipient didn't get token output"
         );
     }
