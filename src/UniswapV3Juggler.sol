@@ -55,6 +55,15 @@ contract UniswapV3Juggler {
     /// Juggle token inputs
     /// -----------------------------------------------------------------------
 
+    /// @notice Given xPYT input, compute how much xPYT to swap into NYT to result in
+    /// an equal amount of PYT & NYT.
+    /// @param nyt The NYT contract
+    /// @param xPYT The xPYT contract
+    /// @param fee The fee tier of the Uniswap V3 pool to use
+    /// @param tokenAmountIn The amount of token input
+    /// @param maxError The maximum acceptable difference between the resulting PYT & NYT balances.
+    /// Might not be achieved if MAX_BINARY_SEARCH_ITERATIONS is reached.
+    /// @return swapAmountIn The amount of xPYT to swap into NYT
     function juggleXpytInput(
         ERC20 nyt,
         ERC4626 xPYT,
@@ -66,7 +75,7 @@ contract UniswapV3Juggler {
 
         // do binary search to find swapAmountIn that balances the end state PYT/NYT amounts
         (uint256 lo, uint256 hi) = (0, tokenAmountIn);
-        swapAmountIn = tokenAmountIn / 2;
+        swapAmountIn = tokenAmountIn >> 1; // take initial guess
         uint256 i;
         while (i < MAX_BINARY_SEARCH_ITERATIONS) {
             uint256 tokenAmountOut = quoter.quoteExactInputSingle(
@@ -85,7 +94,7 @@ contract UniswapV3Juggler {
                 // swap more
                 (lo, swapAmountIn, hi) = (
                     swapAmountIn,
-                    (swapAmountIn + hi) / 2,
+                    (swapAmountIn + hi) >> 1,
                     hi
                 );
             } else if (endStatePYTBalance + maxError < endStateNYTBalance) {
@@ -93,7 +102,7 @@ contract UniswapV3Juggler {
                 // swap less
                 (lo, swapAmountIn, hi) = (
                     lo,
-                    (lo + swapAmountIn) / 2,
+                    (lo + swapAmountIn) >> 1,
                     swapAmountIn
                 );
             } else {
@@ -107,6 +116,15 @@ contract UniswapV3Juggler {
         }
     }
 
+    /// @notice Given NYT input, compute how much NYT to swap into xPYT to result in
+    /// an equal amount of PYT & NYT.
+    /// @param nyt The NYT contract
+    /// @param xPYT The xPYT contract
+    /// @param fee The fee tier of the Uniswap V3 pool to use
+    /// @param tokenAmountIn The amount of token input
+    /// @param maxError The maximum acceptable difference between the resulting PYT & NYT balances.
+    /// Might not be achieved if MAX_BINARY_SEARCH_ITERATIONS is reached.
+    /// @return swapAmountIn The amount of NYT to swap into xPYT
     function juggleNytInput(
         ERC20 nyt,
         ERC4626 xPYT,
@@ -118,7 +136,7 @@ contract UniswapV3Juggler {
 
         // do binary search to find swapAmountIn that balances the end state PYT/NYT amounts
         (uint256 lo, uint256 hi) = (0, tokenAmountIn);
-        swapAmountIn = tokenAmountIn / 2;
+        swapAmountIn = tokenAmountIn >> 1; // take initial guess
         uint256 i;
         while (i < MAX_BINARY_SEARCH_ITERATIONS) {
             uint256 tokenAmountOut = quoter.quoteExactInputSingle(
@@ -135,7 +153,7 @@ contract UniswapV3Juggler {
                 // swap less
                 (lo, swapAmountIn, hi) = (
                     lo,
-                    (lo + swapAmountIn) / 2,
+                    (lo + swapAmountIn) >> 1,
                     swapAmountIn
                 );
             } else if (endStatePYTBalance + maxError < endStateNYTBalance) {
@@ -143,7 +161,7 @@ contract UniswapV3Juggler {
                 // swap more
                 (lo, swapAmountIn, hi) = (
                     swapAmountIn,
-                    (swapAmountIn + hi) / 2,
+                    (swapAmountIn + hi) >> 1,
                     hi
                 );
             } else {
