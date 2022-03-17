@@ -7,12 +7,10 @@ optimizer_runs = 1000000
 remappings = [
   "ds-test/=lib/ds-test/src/",
   "solmate/=lib/solmate/src/",
-  "weird-erc20/=lib/solmate/lib/weird-erc20/src/",
   "timeless/=lib/timeless/src/",
   "v3-core/=lib/v3-core/contracts/",
   "v3-periphery/=lib/v3-periphery/contracts/",
 ]
-solc_version = "0.8.11"
 verbosity = 1
 
 # Extreme Fuzzing CI Profile :P
