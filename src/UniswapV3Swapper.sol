@@ -78,7 +78,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @inheritdoc Swapper
     /// @dev extraArg = (uint24 fee)
     /// fee: The fee tier of the Uniswap V3 pool to use
-    function swapUnderlyingToNYT(SwapArgs calldata args)
+    function swapUnderlyingToNyt(SwapArgs calldata args)
         external
         virtual
         override
@@ -148,7 +148,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @inheritdoc Swapper
     /// @dev extraArg = (uint24 fee)
     /// fee: The fee tier of the Uniswap V3 pool to use
-    function swapUnderlyingToXPYT(SwapArgs calldata args)
+    function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
         virtual
         override
@@ -218,7 +218,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @dev extraArg = (uint24 fee, uint256 swapAmountIn)
     /// fee: The fee tier of the Uniswap V3 pool to use
     /// swapAmountIn: The amount of NYT to swap to xPYT
-    function swapNYTToUnderlying(SwapArgs calldata args)
+    function swapNytToUnderlying(SwapArgs calldata args)
         external
         virtual
         override
@@ -305,7 +305,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// @dev extraArg = (uint24 fee, uint256 swapAmountIn)
     /// fee: The fee tier of the Uniswap V3 pool to use
     /// swapAmountIn: The amount of xPYT to swap to NYT
-    function swapXPYTToUnderlying(SwapArgs calldata args)
+    function swapXpytToUnderlying(SwapArgs calldata args)
         external
         virtual
         override

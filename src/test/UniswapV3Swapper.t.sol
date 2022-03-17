@@ -158,7 +158,7 @@ contract UniswapV3SwapperTest is
         // NYT: 2 * AMOUNT
     }
 
-    function testBasic_swapUnderlyingToNYT() public {
+    function testBasic_swapUnderlyingToNyt() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
             gate: gate,
@@ -173,7 +173,7 @@ contract UniswapV3SwapperTest is
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE)
         });
-        uint256 tokenAmountOut = swapper.swapUnderlyingToNYT(args);
+        uint256 tokenAmountOut = swapper.swapUnderlyingToNyt(args);
 
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
@@ -208,7 +208,7 @@ contract UniswapV3SwapperTest is
         );
     }
 
-    function testBasic_swapUnderlyingToXPYT() public {
+    function testBasic_swapUnderlyingToXpyt() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
             gate: gate,
@@ -223,7 +223,7 @@ contract UniswapV3SwapperTest is
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE)
         });
-        uint256 tokenAmountOut = swapper.swapUnderlyingToXPYT(args);
+        uint256 tokenAmountOut = swapper.swapUnderlyingToXpyt(args);
 
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
@@ -258,7 +258,7 @@ contract UniswapV3SwapperTest is
         );
     }
 
-    function testBasic_swapNYTToUnderlying() public {
+    function testBasic_swapNytToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         uint256 swapAmountIn = juggler.juggleNytInput(
             ERC20(address(nyt)),
@@ -280,7 +280,7 @@ contract UniswapV3SwapperTest is
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE, swapAmountIn)
         });
-        uint256 tokenAmountOut = swapper.swapNYTToUnderlying(args);
+        uint256 tokenAmountOut = swapper.swapNytToUnderlying(args);
 
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
@@ -315,7 +315,7 @@ contract UniswapV3SwapperTest is
         );
     }
 
-    function testBasic_swapXPYTToUnderlying() public {
+    function testBasic_swapXpytToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         uint256 swapAmountIn = juggler.juggleXpytInput(
             ERC20(address(nyt)),
@@ -337,7 +337,7 @@ contract UniswapV3SwapperTest is
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE, swapAmountIn)
         });
-        uint256 tokenAmountOut = swapper.swapXPYTToUnderlying(args);
+        uint256 tokenAmountOut = swapper.swapXpytToUnderlying(args);
 
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(

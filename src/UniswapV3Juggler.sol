@@ -12,8 +12,8 @@ import {IQuoter} from "v3-periphery/interfaces/IQuoter.sol";
 /// @author zefram.eth
 /// @notice Given xPYT/NYT input, computes how much to swap to result in
 /// an equal amount of PYT & NYT.
-/// @dev Used in conjunction with UniswapV3Swapper::swapNYTToUnderlying() and
-/// UniswapV3Swapper::swapXPYTToUnderlying(). Should only be called offchain since
+/// @dev Used in conjunction with UniswapV3Swapper::swapNytToUnderlying() and
+/// UniswapV3Swapper::swapXpytToUnderlying(). Should only be called offchain since
 /// the gas cost is too high to be called onchain.
 contract UniswapV3Juggler {
     /// -----------------------------------------------------------------------

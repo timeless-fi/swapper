@@ -67,7 +67,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// @notice Swaps the underlying asset of an NYT into the NYT
     /// @param args The input arguments (see SwapArgs definition)
     /// @return tokenAmountOut The amount of token output
-    function swapUnderlyingToNYT(SwapArgs calldata args)
+    function swapUnderlyingToNyt(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
@@ -75,7 +75,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// @notice Swaps the underlying asset of an xPYT into the xPYT
     /// @param args The input arguments (see SwapArgs definition)
     /// @return tokenAmountOut The amount of token output
-    function swapUnderlyingToXPYT(SwapArgs calldata args)
+    function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
@@ -83,7 +83,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// @notice Swaps an NYT to its underlying asset
     /// @param args The input arguments (see SwapArgs definition)
     /// @return tokenAmountOut The amount of token output
-    function swapNYTToUnderlying(SwapArgs calldata args)
+    function swapNytToUnderlying(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
@@ -91,7 +91,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// @notice Swaps an xPYT to its underlying asset
     /// @param args The input arguments (see SwapArgs definition)
     /// @return tokenAmountOut The amount of token output
-    function swapXPYTToUnderlying(SwapArgs calldata args)
+    function swapXpytToUnderlying(SwapArgs calldata args)
         external
         virtual
         returns (uint256 tokenAmountOut);
