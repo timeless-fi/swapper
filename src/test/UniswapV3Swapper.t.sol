@@ -21,10 +21,10 @@ import {TickMath} from "./lib/TickMath.sol";
 import {TestERC20} from "./mocks/TestERC20.sol";
 import {TestERC4626} from "./mocks/TestERC4626.sol";
 import {BaseTest, console} from "./base/BaseTest.sol";
-import {PoolAddress} from "../uniswap-v3/PoolAddress.sol";
 import {TestYearnVault} from "./mocks/TestYearnVault.sol";
 import {UniswapDeployer} from "./utils/UniswapDeployer.sol";
 import {LiquidityAmounts} from "./lib/LiquidityAmounts.sol";
+import {PoolAddress} from "../uniswap-v3/lib/PoolAddress.sol";
 import {UniswapV3Juggler} from "../uniswap-v3/UniswapV3Juggler.sol";
 import {UniswapV3Swapper} from "../uniswap-v3/UniswapV3Swapper.sol";
 
