@@ -22,11 +22,11 @@ import {TestERC20} from "./mocks/TestERC20.sol";
 import {PoolAddress} from "../lib/PoolAddress.sol";
 import {TestERC4626} from "./mocks/TestERC4626.sol";
 import {BaseTest, console} from "./base/BaseTest.sol";
-import {UniswapV3Juggler} from "../UniswapV3Juggler.sol";
-import {UniswapV3Swapper} from "../UniswapV3Swapper.sol";
 import {TestYearnVault} from "./mocks/TestYearnVault.sol";
 import {UniswapDeployer} from "./utils/UniswapDeployer.sol";
 import {LiquidityAmounts} from "./lib/LiquidityAmounts.sol";
+import {UniswapV3Juggler} from "../uniswap-v3/UniswapV3Juggler.sol";
+import {UniswapV3Swapper} from "../uniswap-v3/UniswapV3Swapper.sol";
 
 contract UniswapV3SwapperTest is
     BaseTest,

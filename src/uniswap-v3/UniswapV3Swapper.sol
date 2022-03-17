@@ -12,8 +12,8 @@ import {BaseERC20} from "timeless/lib/BaseERC20.sol";
 import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3SwapCallback} from "v3-core/interfaces/callback/IUniswapV3SwapCallback.sol";
 
-import {Swapper} from "./Swapper.sol";
-import {PoolAddress} from "./lib/PoolAddress.sol";
+import {Swapper} from "../Swapper.sol";
+import {PoolAddress} from "../lib/PoolAddress.sol";
 
 /// @title UniswapV3Swapper
 /// @author zefram.eth
