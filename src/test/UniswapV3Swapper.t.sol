@@ -14,12 +14,15 @@ import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "v3-core/interfaces/IUniswapV3Factory.sol";
 import {IUniswapV3MintCallback} from "v3-core/interfaces/callback/IUniswapV3MintCallback.sol";
 
+import {IQuoter} from "v3-periphery/interfaces/IQuoter.sol";
+
 import {Swapper} from "../Swapper.sol";
 import {TickMath} from "./lib/TickMath.sol";
 import {TestERC20} from "./mocks/TestERC20.sol";
 import {PoolAddress} from "../lib/PoolAddress.sol";
 import {TestERC4626} from "./mocks/TestERC4626.sol";
 import {BaseTest, console} from "./base/BaseTest.sol";
+import {UniswapV3Juggler} from "../UniswapV3Juggler.sol";
 import {UniswapV3Swapper} from "../UniswapV3Swapper.sol";
 import {TestYearnVault} from "./mocks/TestYearnVault.sol";
 import {UniswapDeployer} from "./utils/UniswapDeployer.sol";
@@ -40,6 +43,7 @@ contract UniswapV3SwapperTest is
     uint8 constant DECIMALS = 18;
     uint256 constant ONE = 10**DECIMALS;
     uint256 constant AMOUNT = 100 * ONE;
+    uint256 constant MAX_ERROR = ONE / 100000;
 
     Factory factory;
     Gate gate;
@@ -49,8 +53,10 @@ contract UniswapV3SwapperTest is
     PerpetualYieldToken pyt;
     ERC4626 xPYT;
     IUniswapV3Factory uniswapV3Factory;
+    IQuoter uniswapV3Quoter;
     IUniswapV3Pool uniswapV3Pool;
     Swapper swapper;
+    UniswapV3Juggler juggler;
 
     function setUp() public {
         // deploy factory
@@ -79,6 +85,11 @@ contract UniswapV3SwapperTest is
 
         // deploy uniswap v3 factory
         uniswapV3Factory = IUniswapV3Factory(deployUniswapV3Factory());
+
+        // deploy uniswap v3 quoter
+        uniswapV3Quoter = IQuoter(
+            deployUniswapV3Quoter(address(uniswapV3Factory), address(0))
+        );
 
         // deploy uniswap v3 pair
         uniswapV3Pool = IUniswapV3Pool(
@@ -130,6 +141,12 @@ contract UniswapV3SwapperTest is
         // deploy swapper
         swapper = new UniswapV3Swapper(address(uniswapV3Factory));
 
+        // deploy juggler
+        juggler = new UniswapV3Juggler(
+            address(uniswapV3Factory),
+            uniswapV3Quoter
+        );
+
         // set token approvals
         underlying.approve(address(swapper), type(uint256).max);
         nyt.approve(address(swapper), type(uint256).max);
@@ -139,6 +156,56 @@ contract UniswapV3SwapperTest is
         // underlying: AMOUNT
         // xPYT: AMOUNT
         // NYT: 2 * AMOUNT
+    }
+
+    function testBasic_swapUnderlyingToNYT() public {
+        uint256 tokenAmountIn = AMOUNT / 10;
+        Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
+            xPYT: xPYT,
+            tokenAmountIn: tokenAmountIn,
+            minAmountOut: 0,
+            recipient: recipient,
+            useSwapperBalance: false,
+            deadline: block.timestamp,
+            extraArgs: abi.encode(UNI_FEE)
+        });
+        uint256 tokenAmountOut = swapper.swapUnderlyingToNYT(args);
+
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
+        assertEqDecimal(
+            underlying.balanceOf(address(this)),
+            AMOUNT - tokenAmountIn,
+            DECIMALS,
+            "underlying balance of address(this) incorrect"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero underlying"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero xPYT"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(recipient),
+            tokenAmountOut,
+            DECIMALS,
+            "recipient didn't get token output"
+        );
     }
 
     function testBasic_swapUnderlyingToXPYT() public {
@@ -191,8 +258,15 @@ contract UniswapV3SwapperTest is
         );
     }
 
-    function testBasic_swapUnderlyingToNYT() public {
+    function testBasic_swapNYTToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
+        uint256 swapAmountIn = juggler.juggleNytInput(
+            ERC20(address(nyt)),
+            xPYT,
+            UNI_FEE,
+            tokenAmountIn,
+            MAX_ERROR
+        );
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
             gate: gate,
             vault: vault,
@@ -204,16 +278,16 @@ contract UniswapV3SwapperTest is
             recipient: recipient,
             useSwapperBalance: false,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE)
+            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
         });
-        uint256 tokenAmountOut = swapper.swapUnderlyingToNYT(args);
+        uint256 tokenAmountOut = swapper.swapNYTToUnderlying(args);
 
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
-            underlying.balanceOf(address(this)),
-            AMOUNT - tokenAmountIn,
+            nyt.balanceOf(address(this)),
+            2 * AMOUNT - tokenAmountIn,
             DECIMALS,
-            "underlying balance of address(this) incorrect"
+            "NYT balance of address(this) incorrect"
         );
         assertEqDecimal(
             underlying.balanceOf(address(swapper)),
@@ -234,7 +308,64 @@ contract UniswapV3SwapperTest is
             "swapper has non-zero xPYT"
         );
         assertEqDecimal(
-            nyt.balanceOf(recipient),
+            underlying.balanceOf(recipient),
+            tokenAmountOut,
+            DECIMALS,
+            "recipient didn't get token output"
+        );
+    }
+
+    function testBasic_swapXPYTToUnderlying() public {
+        uint256 tokenAmountIn = AMOUNT / 10;
+        uint256 swapAmountIn = juggler.juggleXpytInput(
+            ERC20(address(nyt)),
+            xPYT,
+            UNI_FEE,
+            tokenAmountIn,
+            MAX_ERROR
+        );
+        Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
+            xPYT: xPYT,
+            tokenAmountIn: tokenAmountIn,
+            minAmountOut: 0,
+            recipient: recipient,
+            useSwapperBalance: false,
+            deadline: block.timestamp,
+            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
+        });
+        uint256 tokenAmountOut = swapper.swapXPYTToUnderlying(args);
+
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
+        assertEqDecimal(
+            xPYT.balanceOf(address(this)),
+            AMOUNT - tokenAmountIn,
+            DECIMALS,
+            "xPYT balance of address(this) incorrect"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero underlying"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero xPYT"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(recipient),
             tokenAmountOut,
             DECIMALS,
             "recipient didn't get token output"
