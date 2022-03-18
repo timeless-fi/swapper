@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
-import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {Gate} from "timeless/Gate.sol";
@@ -18,7 +17,7 @@ import {PoolAddress} from "./lib/PoolAddress.sol";
 /// @title UniswapV3Swapper
 /// @author zefram.eth
 /// @notice Swapper that uses Uniswap V3 to swap between xPYTs/NYTs
-contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
+contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -67,7 +66,9 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback, ReentrancyGuard {
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(address uniswapV3Factory_) {
+    constructor(address zeroExProxy_, address uniswapV3Factory_)
+        Swapper(zeroExProxy_)
+    {
         uniswapV3Factory = uniswapV3Factory_;
     }
 

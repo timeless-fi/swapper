@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
+import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {Gate} from "timeless/Gate.sol";
@@ -16,7 +17,7 @@ import {SelfPermit} from "timeless/lib/SelfPermit.sol";
 /// @dev Swapper supports two-hop swaps where one of the swaps is an 0x swap between two regular tokens,
 /// which enables swapping any supported token into any xPYT/NYT. Two-hop swaps are done by chaining
 /// two calls together via Multicall and setting the recipient of the first swap to the Swapper.
-abstract contract Swapper is Multicall, SelfPermit {
+abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -28,6 +29,7 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// -----------------------------------------------------------------------
 
     error Error_PastDeadline();
+    error Error_ZeroExSwapFailed();
     error Error_InsufficientOutput();
 
     /// -----------------------------------------------------------------------
@@ -58,6 +60,20 @@ abstract contract Swapper is Multicall, SelfPermit {
         bool useSwapperBalance;
         uint256 deadline;
         bytes extraArgs;
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Immutable parameters
+    /// -----------------------------------------------------------------------
+
+    address public immutable zeroExProxy;
+
+    /// -----------------------------------------------------------------------
+    /// Constructor
+    /// -----------------------------------------------------------------------
+
+    constructor(address zeroExProxy_) {
+        zeroExProxy = zeroExProxy_;
     }
 
     /// -----------------------------------------------------------------------
@@ -101,6 +117,59 @@ abstract contract Swapper is Multicall, SelfPermit {
     /// -----------------------------------------------------------------------
 
     /// @notice Swaps between two regular tokens using 0x.
+    /// @dev Used in conjuction with the 0x API https://www.0x.org/docs/api
+    /// @param tokenIn The input token
+    /// @param tokenAmountIn The amount of token input
+    /// @param tokenOut The output token
+    /// @param minAmountOut The minimum acceptable token output amount, used for slippage checking.
+    /// @param recipient The recipient of the token output
+    /// @param useSwapperBalance Set to true to use the Swapper's token balance as token input
+    /// @param requireApproval Set to true to approve tokenIn to zeroExProxy
+    /// @param deadline The Unix timestamp (in seconds) after which the call will be reverted
+    /// @param swapData The call data to zeroExProxy to execute the swap, obtained from
+    /// the https://api.0x.org/swap/v1/quote endpoint
     /// @return tokenAmountOut The amount of token output
-    function do0xSwap() external virtual returns (uint256 tokenAmountOut) {}
+    function doZeroExSwap(
+        ERC20 tokenIn,
+        uint256 tokenAmountIn,
+        ERC20 tokenOut,
+        uint256 minAmountOut,
+        address recipient,
+        bool useSwapperBalance,
+        bool requireApproval,
+        uint256 deadline,
+        bytes calldata swapData
+    ) external virtual nonReentrant returns (uint256 tokenAmountOut) {
+        // check deadline
+        if (block.timestamp > deadline) {
+            revert Error_PastDeadline();
+        }
+
+        // transfer in input tokens
+        if (!useSwapperBalance) {
+            tokenIn.safeTransferFrom(msg.sender, address(this), tokenAmountIn);
+        }
+
+        // approve zeroExProxy
+        if (requireApproval) {
+            tokenIn.safeApprove(zeroExProxy, type(uint256).max);
+        }
+
+        // do swap via zeroExProxy
+        (bool success, ) = zeroExProxy.call(swapData);
+        if (!success) {
+            revert Error_ZeroExSwapFailed();
+        }
+
+        // check slippage
+        tokenAmountOut = tokenOut.balanceOf(address(this));
+        if (tokenAmountOut < minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+
+        // transfer output tokens to recipient
+        if (recipient != address(this)) {
+            tokenOut.safeTransfer(recipient, tokenAmountOut);
+        }
+    }
 }

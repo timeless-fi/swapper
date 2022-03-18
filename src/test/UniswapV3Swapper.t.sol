@@ -139,7 +139,7 @@ contract UniswapV3SwapperTest is
         );
 
         // deploy swapper
-        swapper = new UniswapV3Swapper(address(uniswapV3Factory));
+        swapper = new UniswapV3Swapper(address(0), address(uniswapV3Factory));
 
         // deploy juggler
         juggler = new UniswapV3Juggler(
