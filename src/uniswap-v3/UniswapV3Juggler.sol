@@ -110,14 +110,13 @@ contract UniswapV3Juggler {
         swapAmountIn = tokenAmountIn >> 1; // take initial guess
         uint256 i;
         while (i < MAX_BINARY_SEARCH_ITERATIONS) {
-            uint256 tokenAmountOut = quoter.quoteExactInputSingle(
+            uint256 endStateNYTBalance = quoter.quoteExactInputSingle(
                 address(xPYT),
                 address(nyt),
                 fee,
                 swapAmountIn,
                 zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE
             );
-            uint256 endStateNYTBalance = tokenAmountOut;
             uint256 endStatePYTBalance = xPYT.convertToAssets(
                 tokenAmountIn - swapAmountIn
             );
