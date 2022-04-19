@@ -6,6 +6,7 @@ import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {Gate} from "timeless/Gate.sol";
+import {IxPYT} from "timeless/external/IxPYT.sol";
 import {BaseERC20} from "timeless/lib/BaseERC20.sol";
 
 import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
@@ -23,7 +24,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// -----------------------------------------------------------------------
 
     using SafeTransferLib for ERC20;
-    using SafeTransferLib for ERC4626;
+    using SafeTransferLib for IxPYT;
 
     /// -----------------------------------------------------------------------
     /// Errors

@@ -7,6 +7,7 @@ import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {Gate} from "timeless/Gate.sol";
+import {IxPYT} from "timeless/external/IxPYT.sol";
 import {Multicall} from "timeless/lib/Multicall.sol";
 import {SelfPermit} from "timeless/lib/SelfPermit.sol";
 
@@ -53,7 +54,7 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
         address vault;
         ERC20 underlying;
         ERC20 nyt;
-        ERC4626 xPYT;
+        IxPYT xPYT;
         uint256 tokenAmountIn;
         uint256 minAmountOut;
         address recipient;

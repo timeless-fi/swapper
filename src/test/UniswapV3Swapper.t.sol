@@ -6,9 +6,14 @@ import {ERC4626} from "solmate/mixins/ERC4626.sol";
 
 import {Gate} from "timeless/Gate.sol";
 import {Factory} from "timeless/Factory.sol";
+import {IxPYT} from "timeless/external/IxPYT.sol";
 import {YearnGate} from "timeless/gates/YearnGate.sol";
+import {TestXPYT} from "timeless/test/mocks/TestXPYT.sol";
+import {TestERC20} from "timeless/test/mocks/TestERC20.sol";
+import {TestERC4626} from "timeless/test/mocks/TestERC4626.sol";
 import {NegativeYieldToken} from "timeless/NegativeYieldToken.sol";
 import {PerpetualYieldToken} from "timeless/PerpetualYieldToken.sol";
+import {TestYearnVault} from "timeless/test/mocks/TestYearnVault.sol";
 
 import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3Factory} from "v3-core/interfaces/IUniswapV3Factory.sol";
@@ -18,10 +23,7 @@ import {IQuoter} from "v3-periphery/interfaces/IQuoter.sol";
 
 import {Swapper} from "../Swapper.sol";
 import {TickMath} from "./lib/TickMath.sol";
-import {TestERC20} from "./mocks/TestERC20.sol";
-import {TestERC4626} from "./mocks/TestERC4626.sol";
 import {BaseTest, console} from "./base/BaseTest.sol";
-import {TestYearnVault} from "./mocks/TestYearnVault.sol";
 import {UniswapDeployer} from "./utils/UniswapDeployer.sol";
 import {LiquidityAmounts} from "./lib/LiquidityAmounts.sol";
 import {PoolAddress} from "../uniswap-v3/lib/PoolAddress.sol";
@@ -51,7 +53,7 @@ contract UniswapV3SwapperTest is
     address vault;
     NegativeYieldToken nyt;
     PerpetualYieldToken pyt;
-    ERC4626 xPYT;
+    IxPYT xPYT;
     IUniswapV3Factory uniswapV3Factory;
     IQuoter uniswapV3Quoter;
     IUniswapV3Pool uniswapV3Pool;
@@ -81,7 +83,7 @@ contract UniswapV3SwapperTest is
         (nyt, pyt) = factory.deployYieldTokenPair(gate, vault);
 
         // deploy xPYT
-        xPYT = new TestERC4626(ERC20(address(pyt)));
+        xPYT = new TestXPYT(ERC20(address(pyt)));
 
         // deploy uniswap v3 factory
         uniswapV3Factory = IUniswapV3Factory(deployUniswapV3Factory());
@@ -98,7 +100,7 @@ contract UniswapV3SwapperTest is
         uniswapV3Pool.initialize(TickMath.getSqrtRatioAtTick(0));
 
         // mint underlying
-        underlying.mint(address(this), 4 * AMOUNT);
+        underlying.mint(address(this), 3 * AMOUNT);
 
         // mint xPYT & NYT
         underlying.approve(address(gate), type(uint256).max);
@@ -108,15 +110,6 @@ contract UniswapV3SwapperTest is
             vault,
             xPYT,
             2 * AMOUNT
-        );
-
-        // give some yield to xPYT
-        gate.enterWithUnderlying(
-            address(this),
-            address(xPYT),
-            vault,
-            ERC4626(address(0)),
-            AMOUNT
         );
 
         // add liquidity
@@ -155,7 +148,7 @@ contract UniswapV3SwapperTest is
         // token balances:
         // underlying: AMOUNT
         // xPYT: AMOUNT
-        // NYT: 2 * AMOUNT
+        // NYT: AMOUNT
     }
 
     function testBasic_swapUnderlyingToNyt() public {
@@ -285,7 +278,7 @@ contract UniswapV3SwapperTest is
         assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
         assertEqDecimal(
             nyt.balanceOf(address(this)),
-            2 * AMOUNT - tokenAmountIn,
+            AMOUNT - tokenAmountIn,
             DECIMALS,
             "NYT balance of address(this) incorrect"
         );
