@@ -9,8 +9,8 @@ export RPC_URL=$RPC_URL_MAINNET
 . $(dirname $0)/common.sh
 
 # deploy contracts
-univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY_MAINNET $UNIV3_FACTORY_MAINNET)
+univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY $UNIV3_FACTORY)
 echo "UniswapV3Swapper=$univ3_swapper_address"
 
-univ3_juggler_address=$(deploy UniswapV3Juggler $UNIV3_FACTORY_MAINNET $UNIV3_QUOTER_MAINNET)
+univ3_juggler_address=$(deploy UniswapV3Juggler $UNIV3_FACTORY $UNIV3_QUOTER)
 echo "UniswapV3Juggler=$univ3_juggler_address"
