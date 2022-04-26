@@ -45,7 +45,7 @@ contract UniswapV3SwapperTest is
     uint8 constant DECIMALS = 18;
     uint256 constant ONE = 10**DECIMALS;
     uint256 constant AMOUNT = 100 * ONE;
-    uint256 constant MAX_ERROR = ONE / 100000;
+    uint256 constant MAX_ERROR = 1;
 
     Factory factory;
     Gate gate;

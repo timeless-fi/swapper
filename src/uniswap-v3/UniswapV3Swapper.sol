@@ -271,6 +271,11 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
             tokenAmountOut = swapAmountOut;
         }
 
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+
         // burn xPYT & NYT into underlying
         if (
             args.xPYT.allowance(address(this), address(args.gate)) <
@@ -355,6 +360,11 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         } else {
             // PYT balance >= NYT to burn
             tokenAmountOut = swapAmountOut;
+        }
+
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
         }
 
         // burn xPYT & NYT into underlying
