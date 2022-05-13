@@ -63,7 +63,6 @@ contract UniswapV3SwapperTest is
     function setUp() public {
         // deploy factory
         factory = new Factory(
-            address(this),
             Factory.ProtocolFeeInfo({
                 fee: uint8(PROTOCOL_FEE),
                 recipient: protocolFeeRecipient
