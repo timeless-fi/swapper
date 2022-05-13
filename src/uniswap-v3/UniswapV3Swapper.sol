@@ -279,7 +279,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         // burn xPYT & NYT into underlying
         if (
             args.xPYT.allowance(address(this), address(args.gate)) <
-            tokenAmountOut
+            args.xPYT.previewWithdraw(tokenAmountOut)
         ) {
             args.xPYT.safeApprove(address(args.gate), type(uint256).max);
         }
@@ -370,7 +370,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         // burn xPYT & NYT into underlying
         if (
             args.xPYT.allowance(address(this), address(args.gate)) <
-            tokenAmountOut
+            args.xPYT.previewWithdraw(tokenAmountOut)
         ) {
             args.xPYT.safeApprove(address(args.gate), type(uint256).max);
         }
