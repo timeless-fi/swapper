@@ -9,6 +9,7 @@ import {Gate} from "timeless/Gate.sol";
 import {IxPYT} from "timeless/external/IxPYT.sol";
 import {BaseERC20} from "timeless/lib/BaseERC20.sol";
 
+import {SafeCast} from "v3-core/libraries/SafeCast.sol";
 import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3SwapCallback} from "v3-core/interfaces/callback/IUniswapV3SwapCallback.sol";
 
@@ -23,6 +24,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// Library usage
     /// -----------------------------------------------------------------------
 
+    using SafeCast for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for IxPYT;
 
@@ -475,7 +477,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         (int256 amount0, int256 amount1) = uniPool.swap(
             recipient,
             zeroForOne,
-            int256(tokenAmountIn),
+            tokenAmountIn.toInt256(),
             zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE,
             swapCallbackData
         );
