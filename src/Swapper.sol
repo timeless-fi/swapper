@@ -29,6 +29,7 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
     /// Errors
     /// -----------------------------------------------------------------------
 
+    error Error_SameToken();
     error Error_PastDeadline();
     error Error_ZeroExSwapFailed();
     error Error_InsufficientOutput();
@@ -141,6 +142,11 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
         uint256 deadline,
         bytes calldata swapData
     ) external virtual nonReentrant returns (uint256 tokenAmountOut) {
+        // check if input token equals output
+        if (tokenIn == tokenOut) {
+            revert Error_SameToken();
+        }
+
         // check deadline
         if (block.timestamp > deadline) {
             revert Error_PastDeadline();
