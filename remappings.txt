@@ -3,3 +3,4 @@ ds-test/=lib/ds-test/src/
 v3-core/=lib/v3-core/contracts/
 v3-periphery/=lib/v3-periphery/contracts/
 solmate/=lib/solmate/src/
+boringsolidity/=lib/boringsolidity/contracts/

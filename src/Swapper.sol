@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import {BoringOwnable} from "boringsolidity/BoringOwnable.sol";
+
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
@@ -18,7 +20,12 @@ import {SelfPermit} from "timeless/lib/SelfPermit.sol";
 /// @dev Swapper supports two-hop swaps where one of the swaps is an 0x swap between two regular tokens,
 /// which enables swapping any supported token into any xPYT/NYT. Two-hop swaps are done by chaining
 /// two calls together via Multicall and setting the recipient of the first swap to the Swapper.
-abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
+abstract contract Swapper is
+    Multicall,
+    SelfPermit,
+    ReentrancyGuard,
+    BoringOwnable
+{
     /// -----------------------------------------------------------------------
     /// Library usage
     /// -----------------------------------------------------------------------
@@ -33,6 +40,13 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
     error Error_PastDeadline();
     error Error_ZeroExSwapFailed();
     error Error_InsufficientOutput();
+    error Error_ProtocolFeeRecipientIsZero();
+
+    /// -----------------------------------------------------------------------
+    /// Events
+    /// -----------------------------------------------------------------------
+
+    event SetProtocolFee(ProtocolFeeInfo protocolFeeInfo_);
 
     /// -----------------------------------------------------------------------
     /// Structs
@@ -64,18 +78,42 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
         bytes extraArgs;
     }
 
+    /// @param fee The fee value. Each increment represents 0.01%, so max is 2.55% (8 bits)
+    /// @param recipient The address that will receive the protocol fees
+    struct ProtocolFeeInfo {
+        uint8 fee;
+        address recipient;
+    }
+
     /// -----------------------------------------------------------------------
     /// Immutable parameters
     /// -----------------------------------------------------------------------
 
+    // @notice The 0x proxy contract used for 0x swaps
     address public immutable zeroExProxy;
+
+    /// -----------------------------------------------------------------------
+    /// Storage variables
+    /// -----------------------------------------------------------------------
+
+    /// @notice The protocol fee and the fee recipient address.
+    ProtocolFeeInfo public protocolFeeInfo;
 
     /// -----------------------------------------------------------------------
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(address zeroExProxy_) {
+    constructor(address zeroExProxy_, ProtocolFeeInfo memory protocolFeeInfo_) {
         zeroExProxy = zeroExProxy_;
+
+        if (
+            protocolFeeInfo_.fee != 0 &&
+            protocolFeeInfo_.recipient == address(0)
+        ) {
+            revert Error_ProtocolFeeRecipientIsZero();
+        }
+        protocolFeeInfo = protocolFeeInfo_;
+        emit SetProtocolFee(protocolFeeInfo_);
     }
 
     /// -----------------------------------------------------------------------
@@ -178,5 +216,28 @@ abstract contract Swapper is Multicall, SelfPermit, ReentrancyGuard {
         if (recipient != address(this)) {
             tokenOut.safeTransfer(recipient, tokenAmountOut);
         }
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Owner functions
+    /// -----------------------------------------------------------------------
+
+    /// @notice Updates the protocol fee and/or the protocol fee recipient.
+    /// Only callable by the owner.
+    /// @param protocolFeeInfo_ The new protocol fee info
+    function ownerSetProtocolFee(ProtocolFeeInfo calldata protocolFeeInfo_)
+        external
+        virtual
+        onlyOwner
+    {
+        if (
+            protocolFeeInfo_.fee != 0 &&
+            protocolFeeInfo_.recipient == address(0)
+        ) {
+            revert Error_ProtocolFeeRecipientIsZero();
+        }
+        protocolFeeInfo = protocolFeeInfo_;
+
+        emit SetProtocolFee(protocolFeeInfo_);
     }
 }

@@ -38,9 +38,11 @@ contract UniswapV3SwapperTest is
     error Error_NotUniswapV3Pool();
 
     address constant recipient = address(0x42);
-    address constant protocolFeeRecipient = address(0x6969);
+    address constant swapFeeRecipient = address(0x6969);
+    address constant protocolFeeRecipient = address(0x69);
 
-    uint256 constant PROTOCOL_FEE = 100; // 10%
+    uint8 constant PROTOCOL_FEE = 100; // 10%
+    uint8 constant SWAPPER_PROTOCOL_FEE = 10; // 0.1%
     uint24 constant UNI_FEE = 500;
     uint8 constant DECIMALS = 18;
     uint256 constant ONE = 10**DECIMALS;
@@ -64,7 +66,7 @@ contract UniswapV3SwapperTest is
         // deploy factory
         factory = new Factory(
             Factory.ProtocolFeeInfo({
-                fee: uint8(PROTOCOL_FEE),
+                fee: PROTOCOL_FEE,
                 recipient: protocolFeeRecipient
             })
         );
@@ -131,7 +133,14 @@ contract UniswapV3SwapperTest is
         );
 
         // deploy swapper
-        swapper = new UniswapV3Swapper(address(0), address(uniswapV3Factory));
+        swapper = new UniswapV3Swapper(
+            address(0),
+            Swapper.ProtocolFeeInfo({
+                fee: SWAPPER_PROTOCOL_FEE,
+                recipient: swapFeeRecipient
+            }),
+            address(uniswapV3Factory)
+        );
 
         // deploy juggler
         juggler = new UniswapV3Juggler(
@@ -198,6 +207,12 @@ contract UniswapV3SwapperTest is
             DECIMALS,
             "recipient didn't get token output"
         );
+        assertEqDecimal(
+            underlying.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
+        );
     }
 
     function testBasic_swapUnderlyingToXpyt() public {
@@ -248,15 +263,24 @@ contract UniswapV3SwapperTest is
             DECIMALS,
             "recipient didn't get token output"
         );
+        assertEqDecimal(
+            underlying.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
+        );
     }
 
     function testBasic_swapNytToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
+        uint256 tokenAmountInAfterFee = tokenAmountIn -
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
+            10000;
         uint256 swapAmountIn = juggler.juggleNytInput(
             ERC20(address(nyt)),
             xPYT,
             UNI_FEE,
-            tokenAmountIn,
+            tokenAmountInAfterFee,
             MAX_ERROR
         );
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
@@ -305,15 +329,24 @@ contract UniswapV3SwapperTest is
             DECIMALS,
             "recipient didn't get token output"
         );
+        assertEqDecimal(
+            nyt.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
+        );
     }
 
     function testBasic_swapXpytToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
+        uint256 tokenAmountInAfterFee = tokenAmountIn -
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
+            10000;
         uint256 swapAmountIn = juggler.juggleXpytInput(
             ERC20(address(nyt)),
             xPYT,
             UNI_FEE,
-            tokenAmountIn,
+            tokenAmountInAfterFee,
             MAX_ERROR
         );
         Swapper.SwapArgs memory args = Swapper.SwapArgs({
@@ -361,6 +394,12 @@ contract UniswapV3SwapperTest is
             tokenAmountOut,
             DECIMALS,
             "recipient didn't get token output"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
         );
     }
 
