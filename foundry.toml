@@ -11,6 +11,7 @@ remappings = [
   "v3-core/=lib/v3-core/contracts/",
   "v3-periphery/=lib/v3-periphery/contracts/",
   "boringsolidity/=lib/boringsolidity/contracts/",
+  "lib/=lib/"
 ]
 verbosity = 1
 
