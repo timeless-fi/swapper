@@ -19,8 +19,5 @@ jobs:
         with:
           version: nightly
 
-      - name: Install dependencies
-        run: FOUNDRY_PROFILE=ci make install
-
       - name: Run tests
         run: FOUNDRY_PROFILE=ci make test
