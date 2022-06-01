@@ -13,12 +13,14 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
-          token: ${{ secrets.ACCESS_TOKEN }}
 
       - name: Install Foundry
         uses: onbjerg/foundry-toolchain@v1
         with:
           version: nightly
+
+      - name: Install dependencies
+        run: FOUNDRY_PROFILE=ci make install
 
       - name: Run tests
         run: FOUNDRY_PROFILE=ci make test
