@@ -172,11 +172,13 @@ contract UniswapV3SwapperTest is
             vault: vault,
             underlying: underlying,
             nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
             xPYT: xPYT,
             tokenAmountIn: tokenAmountIn,
             minAmountOut: 0,
             recipient: recipient,
             useSwapperBalance: false,
+            usePYT: false,
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE)
         });
@@ -228,11 +230,13 @@ contract UniswapV3SwapperTest is
             vault: vault,
             underlying: underlying,
             nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
             xPYT: xPYT,
             tokenAmountIn: tokenAmountIn,
             minAmountOut: 0,
             recipient: recipient,
             useSwapperBalance: false,
+            usePYT: false,
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE)
         });
@@ -277,6 +281,70 @@ contract UniswapV3SwapperTest is
         );
     }
 
+    function testBasic_swapUnderlyingToPyt() public {
+        uint256 tokenAmountIn = AMOUNT / 10;
+        Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
+            xPYT: xPYT,
+            tokenAmountIn: tokenAmountIn,
+            minAmountOut: 0,
+            recipient: recipient,
+            useSwapperBalance: false,
+            usePYT: true,
+            deadline: block.timestamp,
+            extraArgs: abi.encode(UNI_FEE)
+        });
+        uint256 tokenAmountOut = swapper.swapUnderlyingToXpyt(args);
+
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
+        assertEqDecimal(
+            underlying.balanceOf(address(this)),
+            AMOUNT - tokenAmountIn,
+            DECIMALS,
+            "underlying balance of address(this) incorrect"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero underlying"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero xPYT"
+        );
+        assertEqDecimal(
+            pyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero PYT"
+        );
+        assertEqDecimal(
+            pyt.balanceOf(recipient),
+            tokenAmountOut,
+            DECIMALS,
+            "recipient didn't get token output"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
+        );
+    }
+
     function testBasic_swapNytToUnderlying() public {
         uint256 tokenAmountIn = AMOUNT / 10;
         uint256 tokenAmountInAfterFee = tokenAmountIn -
@@ -294,11 +362,13 @@ contract UniswapV3SwapperTest is
             vault: vault,
             underlying: underlying,
             nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
             xPYT: xPYT,
             tokenAmountIn: tokenAmountIn,
             minAmountOut: 0,
             recipient: recipient,
             useSwapperBalance: false,
+            usePYT: false,
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE, swapAmountIn)
         });
@@ -360,11 +430,13 @@ contract UniswapV3SwapperTest is
             vault: vault,
             underlying: underlying,
             nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
             xPYT: xPYT,
             tokenAmountIn: tokenAmountIn,
             minAmountOut: 0,
             recipient: recipient,
             useSwapperBalance: false,
+            usePYT: false,
             deadline: block.timestamp,
             extraArgs: abi.encode(UNI_FEE, swapAmountIn)
         });
@@ -388,6 +460,85 @@ contract UniswapV3SwapperTest is
             0,
             DECIMALS,
             "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero xPYT"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(recipient),
+            tokenAmountOut,
+            DECIMALS,
+            "recipient didn't get token output"
+        );
+        assertEqDecimal(
+            xPYT.balanceOf(swapFeeRecipient),
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
+            DECIMALS,
+            "swap fee recipient didn't get fee"
+        );
+    }
+
+    function testBasic_swapPytToUnderlying() public {
+        uint256 tokenAmountIn = xPYT.redeem(
+            AMOUNT / 10,
+            address(this),
+            address(this)
+        );
+        uint256 tokenAmountInAfterFee = tokenAmountIn -
+            (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
+            10000;
+        uint256 swapAmountIn = juggler.juggleXpytInput(
+            ERC20(address(nyt)),
+            xPYT,
+            UNI_FEE,
+            tokenAmountInAfterFee,
+            MAX_ERROR
+        );
+        Swapper.SwapArgs memory args = Swapper.SwapArgs({
+            gate: gate,
+            vault: vault,
+            underlying: underlying,
+            nyt: ERC20(address(nyt)),
+            pyt: ERC20(address(pyt)),
+            xPYT: xPYT,
+            tokenAmountIn: tokenAmountIn,
+            minAmountOut: 0,
+            recipient: recipient,
+            useSwapperBalance: false,
+            usePYT: true,
+            deadline: block.timestamp,
+            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
+        });
+        pyt.approve(address(swapper), type(uint256).max);
+        uint256 tokenAmountOut = swapper.swapXpytToUnderlying(args);
+
+        assertGtDecimal(tokenAmountOut, 0, DECIMALS, "tokenAmountOut is zero");
+        assertEqDecimal(
+            pyt.balanceOf(address(this)),
+            0,
+            DECIMALS,
+            "PYT balance of address(this) incorrect"
+        );
+        assertEqDecimal(
+            underlying.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero underlying"
+        );
+        assertEqDecimal(
+            nyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero NYT"
+        );
+        assertEqDecimal(
+            pyt.balanceOf(address(swapper)),
+            0,
+            DECIMALS,
+            "swapper has non-zero PYT"
         );
         assertEqDecimal(
             xPYT.balanceOf(address(swapper)),

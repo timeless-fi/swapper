@@ -222,7 +222,9 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
             }
 
             // add token output from minting to result
-            tokenAmountOut = args.xPYT.previewDeposit(tokenAmountIn);
+            tokenAmountOut = args.usePYT
+                ? tokenAmountIn
+                : args.xPYT.previewDeposit(tokenAmountIn);
 
             // use underlying to mint xPYT & NYT
             if (
@@ -238,21 +240,33 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
                 address(this), // nytRecipient
                 args.recipient, // pytRecipient
                 args.vault,
-                args.xPYT,
+                args.usePYT ? IxPYT(address(0)) : args.xPYT,
                 tokenAmountIn
             );
         }
 
         // swap NYT to xPYT
+        uint256 swapOutput;
         {
             uint24 fee = abi.decode(args.extraArgs, (uint24));
-            tokenAmountOut += _swap(
+            swapOutput = _swap(
                 args.nyt,
                 tokenAmountIn,
                 args.xPYT,
                 fee,
-                args.recipient
+                args.usePYT ? address(this) : args.recipient // set recipient to this when using PYT in order to unwrap xPYT
             );
+        }
+
+        // unwrap xPYT if necessary
+        if (args.usePYT) {
+            tokenAmountOut += args.xPYT.redeem(
+                swapOutput,
+                args.recipient,
+                address(this)
+            );
+        } else {
+            tokenAmountOut += swapOutput;
         }
 
         // check slippage
@@ -349,10 +363,21 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         if (remainingAmountIn < swapAmountOut) {
             // NYT to burn < PYT balance
             // give leftover xPYT to recipient
-            args.xPYT.safeTransfer(
-                args.recipient,
-                args.xPYT.balanceOf(address(this))
-            );
+            if (args.usePYT) {
+                uint256 maxRedeemAmount = args.xPYT.maxRedeem(address(this));
+                if (maxRedeemAmount != 0) {
+                    args.xPYT.redeem(
+                        args.xPYT.maxRedeem(address(this)),
+                        args.recipient,
+                        address(this)
+                    );
+                }
+            } else {
+                args.xPYT.safeTransfer(
+                    args.recipient,
+                    args.xPYT.balanceOf(address(this))
+                );
+            }
         } else {
             // NYT balance >= PYT to burn
             // give leftover NYT to recipient
@@ -382,11 +407,29 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         // transfer token input from sender
         uint256 tokenAmountIn = args.tokenAmountIn;
         if (!args.useSwapperBalance) {
-            args.xPYT.safeTransferFrom(
-                msg.sender,
-                address(this),
-                tokenAmountIn
-            );
+            if (args.usePYT) {
+                // transfer PYT from sender to this
+                args.pyt.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+
+                // convert PYT input into xPYT and update tokenAmountIn
+                if (
+                    args.pyt.allowance(address(this), address(args.xPYT)) <
+                    tokenAmountIn
+                ) {
+                    args.pyt.approve(address(args.xPYT), type(uint256).max);
+                }
+                tokenAmountIn = args.xPYT.deposit(tokenAmountIn, address(this));
+            } else {
+                args.xPYT.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+            }
         }
 
         // take protocol fee
@@ -461,10 +504,21 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         } else {
             // PYT balance >= NYT to burn
             // give leftover xPYT to recipient
-            args.xPYT.safeTransfer(
-                args.recipient,
-                args.xPYT.balanceOf(address(this))
-            );
+            if (args.usePYT) {
+                uint256 maxRedeemAmount = args.xPYT.maxRedeem(address(this));
+                if (maxRedeemAmount != 0) {
+                    args.xPYT.redeem(
+                        args.xPYT.maxRedeem(address(this)),
+                        args.recipient,
+                        address(this)
+                    );
+                }
+            } else {
+                args.xPYT.safeTransfer(
+                    args.recipient,
+                    args.xPYT.balanceOf(address(this))
+                );
+            }
         }
     }
 

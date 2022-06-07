@@ -57,12 +57,15 @@ abstract contract Swapper is
     /// @param vault The yield-bearing vault used by the xPYT/NYT
     /// @param underlying The underlying asset of the xPYT/NYT
     /// @param nyt The NYT contract linked to the xPYT/NYT being swapped
+    /// @param pyt The PYT contract linked to the xPYT/NYT being swapped
     /// @param xPYT The xPYT contract linked to the xPYT/NYT being swapped
     /// @param tokenAmountIn The amount of token input
     /// @param minAmountOut The minimum acceptable token output amount, used for slippage checking.
     /// @param recipient The recipient of the token output
     /// @param useSwapperBalance Set to true to use the Swapper's token balance as token input, in which
     /// case `tokenAmountIn` will be overriden to the balance.
+    /// @param usePYT Set to true to use raw PYT as the input/output token instead of xPYT. Ignored
+    /// when swapping from the underlying to NYT.
     /// @param deadline The Unix timestamp (in seconds) after which the call will be reverted
     /// @param extraArgs Used for providing extra input parameters for different protocols/use cases
     struct SwapArgs {
@@ -70,11 +73,13 @@ abstract contract Swapper is
         address vault;
         ERC20 underlying;
         ERC20 nyt;
+        ERC20 pyt;
         IxPYT xPYT;
         uint256 tokenAmountIn;
         uint256 minAmountOut;
         address recipient;
         bool useSwapperBalance;
+        bool usePYT;
         uint256 deadline;
         bytes extraArgs;
     }
