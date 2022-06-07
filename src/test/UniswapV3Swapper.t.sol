@@ -560,12 +560,11 @@ contract UniswapV3SwapperTest is
         );
     }
 
-    function test_wrapEthInput(uint256 amount) public {
-        vm.assume(amount < address(this).balance);
-        swapper.wrapEthInput{value: amount}();
+    function test_wrapEthInput() public {
+        swapper.wrapEthInput{value: 1 ether}();
         assertEqDecimal(
             weth.balanceOf(address(swapper)),
-            amount,
+            1 ether,
             18,
             "wrap ETH failed"
         );
