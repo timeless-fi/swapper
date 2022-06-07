@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {BoringOwnable} from "boringsolidity/BoringOwnable.sol";
 
+import {WETH} from "solmate/tokens/WETH.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
@@ -89,8 +90,11 @@ abstract contract Swapper is
     /// Immutable parameters
     /// -----------------------------------------------------------------------
 
-    // @notice The 0x proxy contract used for 0x swaps
+    /// @notice The 0x proxy contract used for 0x swaps
     address public immutable zeroExProxy;
+
+    /// @notice The Wrapped Ethereum contract
+    WETH public immutable weth;
 
     /// -----------------------------------------------------------------------
     /// Storage variables
@@ -103,8 +107,13 @@ abstract contract Swapper is
     /// Constructor
     /// -----------------------------------------------------------------------
 
-    constructor(address zeroExProxy_, ProtocolFeeInfo memory protocolFeeInfo_) {
+    constructor(
+        address zeroExProxy_,
+        WETH weth_,
+        ProtocolFeeInfo memory protocolFeeInfo_
+    ) {
         zeroExProxy = zeroExProxy_;
+        weth = weth_;
 
         if (
             protocolFeeInfo_.fee != 0 &&
@@ -216,6 +225,17 @@ abstract contract Swapper is
         if (recipient != address(this)) {
             tokenOut.safeTransfer(recipient, tokenAmountOut);
         }
+    }
+
+    /// -----------------------------------------------------------------------
+    /// WETH support
+    /// -----------------------------------------------------------------------
+
+    /// @notice Wraps the user's ETH input into WETH
+    /// @dev Should be used as part of a multicall to convert the user's ETH input into WETH
+    /// so that it can be swapped into xPYT/NYT.
+    function wrapEthInput() external payable {
+        weth.deposit{value: msg.value}();
     }
 
     /// -----------------------------------------------------------------------

@@ -9,7 +9,7 @@ export RPC_URL=$RPC_URL_RINKEBY
 . $(dirname $0)/common.sh
 
 # deploy contracts
-univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY $PROTOCOL_FEE_RINKEBY $UNIV3_FACTORY)
+univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY $WETH_RINKEBY $PROTOCOL_FEE_RINKEBY $UNIV3_FACTORY)
 echo "UniswapV3Swapper=$univ3_swapper_address"
 
 send $univ3_swapper_address "transferOwnership(address,bool,bool)" $INITIAL_OWNER_RINKEBY true false

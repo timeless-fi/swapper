@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import {WETH} from "solmate/tokens/WETH.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 
@@ -61,8 +62,12 @@ contract UniswapV3SwapperTest is
     IUniswapV3Pool uniswapV3Pool;
     Swapper swapper;
     UniswapV3Juggler juggler;
+    WETH weth;
 
     function setUp() public {
+        // deploy weth
+        weth = new WETH();
+
         // deploy factory
         factory = new Factory(
             Factory.ProtocolFeeInfo({
@@ -135,6 +140,7 @@ contract UniswapV3SwapperTest is
         // deploy swapper
         swapper = new UniswapV3Swapper(
             address(0),
+            weth,
             Swapper.ProtocolFeeInfo({
                 fee: SWAPPER_PROTOCOL_FEE,
                 recipient: swapFeeRecipient
@@ -400,6 +406,17 @@ contract UniswapV3SwapperTest is
             (tokenAmountIn * SWAPPER_PROTOCOL_FEE) / 10000,
             DECIMALS,
             "swap fee recipient didn't get fee"
+        );
+    }
+
+    function test_wrapEthInput(uint256 amount) public {
+        vm.assume(amount < address(this).balance);
+        swapper.wrapEthInput{value: amount}();
+        assertEqDecimal(
+            weth.balanceOf(address(swapper)),
+            amount,
+            18,
+            "wrap ETH failed"
         );
     }
 

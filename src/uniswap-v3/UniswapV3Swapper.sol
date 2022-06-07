@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.4;
 
+import {WETH} from "solmate/tokens/WETH.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
@@ -71,9 +72,10 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
 
     constructor(
         address zeroExProxy_,
+        WETH weth_,
         ProtocolFeeInfo memory protocolFeeInfo_,
         address uniswapV3Factory_
-    ) Swapper(zeroExProxy_, protocolFeeInfo_) {
+    ) Swapper(zeroExProxy_, weth_, protocolFeeInfo_) {
         uniswapV3Factory = uniswapV3Factory_;
     }
 
