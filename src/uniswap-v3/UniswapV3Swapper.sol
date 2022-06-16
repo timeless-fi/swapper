@@ -88,6 +88,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// fee: The fee tier of the Uniswap V3 pool to use
     function swapUnderlyingToNyt(SwapArgs calldata args)
         external
+        payable
         virtual
         override
         nonReentrant
@@ -178,6 +179,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// fee: The fee tier of the Uniswap V3 pool to use
     function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
+        payable
         virtual
         override
         nonReentrant
@@ -281,6 +283,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// swapAmountIn: The amount of NYT to swap to xPYT
     function swapNytToUnderlying(SwapArgs calldata args)
         external
+        payable
         virtual
         override
         nonReentrant
@@ -394,6 +397,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     /// swapAmountIn: The amount of xPYT to swap to NYT
     function swapXpytToUnderlying(SwapArgs calldata args)
         external
+        payable
         virtual
         override
         nonReentrant

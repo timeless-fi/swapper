@@ -139,6 +139,7 @@ abstract contract Swapper is
     /// @return tokenAmountOut The amount of token output
     function swapUnderlyingToNyt(SwapArgs calldata args)
         external
+        payable
         virtual
         returns (uint256 tokenAmountOut);
 
@@ -147,6 +148,7 @@ abstract contract Swapper is
     /// @return tokenAmountOut The amount of token output
     function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
+        payable
         virtual
         returns (uint256 tokenAmountOut);
 
@@ -155,6 +157,7 @@ abstract contract Swapper is
     /// @return tokenAmountOut The amount of token output
     function swapNytToUnderlying(SwapArgs calldata args)
         external
+        payable
         virtual
         returns (uint256 tokenAmountOut);
 
@@ -163,6 +166,7 @@ abstract contract Swapper is
     /// @return tokenAmountOut The amount of token output
     function swapXpytToUnderlying(SwapArgs calldata args)
         external
+        payable
         virtual
         returns (uint256 tokenAmountOut);
 
@@ -193,7 +197,7 @@ abstract contract Swapper is
         bool requireApproval,
         uint256 deadline,
         bytes calldata swapData
-    ) external virtual nonReentrant returns (uint256 tokenAmountOut) {
+    ) external payable virtual nonReentrant returns (uint256 tokenAmountOut) {
         // check if input token equals output
         if (tokenIn == tokenOut) {
             revert Error_SameToken();
