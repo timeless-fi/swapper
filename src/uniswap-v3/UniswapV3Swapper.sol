@@ -16,6 +16,7 @@ import {IUniswapV3SwapCallback} from "v3-core/interfaces/callback/IUniswapV3Swap
 
 import {Swapper} from "../Swapper.sol";
 import {PoolAddress} from "./lib/PoolAddress.sol";
+import {ApproveMaxIfNeeded} from "../lib/ApproveMaxIfNeeded.sol";
 
 /// @title UniswapV3Swapper
 /// @author zefram.eth
@@ -28,6 +29,8 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
     using SafeCast for uint256;
     using SafeTransferLib for ERC20;
     using SafeTransferLib for IxPYT;
+    using ApproveMaxIfNeeded for ERC20;
+    using ApproveMaxIfNeeded for IxPYT;
 
     /// -----------------------------------------------------------------------
     /// Errors
@@ -137,15 +140,10 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
 
             // use underlying to mint xPYT & NYT
             xPYTMinted = args.xPYT.previewDeposit(tokenAmountIn);
-            if (
-                args.underlying.allowance(address(this), address(args.gate)) <
+            args.underlying.approveMaxIfNeeded(
+                address(args.gate),
                 tokenAmountIn
-            ) {
-                args.underlying.safeApprove(
-                    address(args.gate),
-                    type(uint256).max
-                );
-            }
+            );
             args.gate.enterWithUnderlying(
                 args.recipient, // nytRecipient
                 address(this), // pytRecipient
@@ -229,15 +227,10 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
                 : args.xPYT.previewDeposit(tokenAmountIn);
 
             // use underlying to mint xPYT & NYT
-            if (
-                args.underlying.allowance(address(this), address(args.gate)) <
+            args.underlying.approveMaxIfNeeded(
+                address(args.gate),
                 tokenAmountIn
-            ) {
-                args.underlying.safeApprove(
-                    address(args.gate),
-                    type(uint256).max
-                );
-            }
+            );
             args.gate.enterWithUnderlying(
                 address(this), // nytRecipient
                 args.recipient, // pytRecipient
@@ -349,12 +342,10 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         }
 
         // burn xPYT & NYT into underlying
-        if (
-            args.xPYT.allowance(address(this), address(args.gate)) <
+        args.xPYT.approveMaxIfNeeded(
+            address(args.gate),
             args.xPYT.previewWithdraw(tokenAmountOut)
-        ) {
-            args.xPYT.safeApprove(address(args.gate), type(uint256).max);
-        }
+        );
         args.gate.exitToUnderlying(
             args.recipient,
             args.vault,
@@ -420,12 +411,7 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
                 );
 
                 // convert PYT input into xPYT and update tokenAmountIn
-                if (
-                    args.pyt.allowance(address(this), address(args.xPYT)) <
-                    tokenAmountIn
-                ) {
-                    args.pyt.approve(address(args.xPYT), type(uint256).max);
-                }
+                args.pyt.approveMaxIfNeeded(address(args.xPYT), tokenAmountIn);
                 tokenAmountIn = args.xPYT.deposit(tokenAmountIn, address(this));
             } else {
                 args.xPYT.safeTransferFrom(
@@ -484,12 +470,10 @@ contract UniswapV3Swapper is Swapper, IUniswapV3SwapCallback {
         }
 
         // burn xPYT & NYT into underlying
-        if (
-            args.xPYT.allowance(address(this), address(args.gate)) <
+        args.xPYT.approveMaxIfNeeded(
+            address(args.gate),
             args.xPYT.previewWithdraw(tokenAmountOut)
-        ) {
-            args.xPYT.safeApprove(address(args.gate), type(uint256).max);
-        }
+        );
         args.gate.exitToUnderlying(
             args.recipient,
             args.vault,
