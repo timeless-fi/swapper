@@ -46,6 +46,7 @@ import {ICurveCryptoSwap} from "./external/ICurveCryptoSwap.sol";
 /// @dev Used in conjunction with CurveV2Swapper::swapNytToUnderlying() and
 /// CurveV2Swapper::swapXpytToUnderlying(). Should only be called offchain since
 /// the gas cost is too high to be called onchain.
+/// Assumes for all Curve pools used, coins[0] is NYT and coins[1] is xPYT.
 contract CurveV2Juggler {
     /// -----------------------------------------------------------------------
     /// Constants
@@ -62,8 +63,6 @@ contract CurveV2Juggler {
     /// an equal amount of PYT & NYT.
     /// @param xPYT The xPYT contract
     /// @param pool The Curve V2 pool to use
-    /// @param i The index of the input token in the Curve pool
-    /// @param j The index of the output token in the Curve pool
     /// @param tokenAmountIn The amount of token input
     /// @param maxError The maximum acceptable difference between the resulting PYT & NYT balances.
     /// Might not be achieved if MAX_BINARY_SEARCH_ITERATIONS is reached.
@@ -71,8 +70,6 @@ contract CurveV2Juggler {
     function juggleXpytInput(
         ERC4626 xPYT,
         ICurveCryptoSwap pool,
-        uint256 i,
-        uint256 j,
         uint256 tokenAmountIn,
         uint256 maxError
     ) external view returns (uint256 swapAmountIn) {
@@ -81,7 +78,7 @@ contract CurveV2Juggler {
         swapAmountIn = tokenAmountIn >> 1; // take initial guess
         uint256 k;
         while (k < MAX_BINARY_SEARCH_ITERATIONS) {
-            uint256 endStateNYTBalance = pool.get_dy(i, j, swapAmountIn);
+            uint256 endStateNYTBalance = pool.get_dy(1, 0, swapAmountIn);
             uint256 endStatePYTBalance = xPYT.convertToAssets(
                 tokenAmountIn - swapAmountIn
             );
@@ -116,8 +113,6 @@ contract CurveV2Juggler {
     /// an equal amount of PYT & NYT.
     /// @param xPYT The xPYT contract
     /// @param pool The Curve V2 pool to use
-    /// @param i The index of the input token in the Curve pool
-    /// @param j The index of the output token in the Curve pool
     /// @param tokenAmountIn The amount of token input
     /// @param maxError The maximum acceptable difference between the resulting PYT & NYT balances.
     /// Might not be achieved if MAX_BINARY_SEARCH_ITERATIONS is reached.
@@ -125,8 +120,6 @@ contract CurveV2Juggler {
     function juggleNytInput(
         ERC4626 xPYT,
         ICurveCryptoSwap pool,
-        uint256 i,
-        uint256 j,
         uint256 tokenAmountIn,
         uint256 maxError
     ) external view returns (uint256 swapAmountIn) {
@@ -135,7 +128,7 @@ contract CurveV2Juggler {
         swapAmountIn = tokenAmountIn >> 1; // take initial guess
         uint256 k;
         while (k < MAX_BINARY_SEARCH_ITERATIONS) {
-            uint256 tokenAmountOut = pool.get_dy(i, j, swapAmountIn);
+            uint256 tokenAmountOut = pool.get_dy(0, 1, swapAmountIn);
             uint256 endStateNYTBalance = tokenAmountIn - swapAmountIn;
             uint256 endStatePYTBalance = xPYT.convertToAssets(tokenAmountOut);
             if (endStatePYTBalance > endStateNYTBalance + maxError) {

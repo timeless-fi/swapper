@@ -17,6 +17,7 @@ import {ApproveMaxIfNeeded} from "../lib/ApproveMaxIfNeeded.sol";
 /// @title CurveV2Swapper
 /// @author zefram.eth
 /// @notice Swapper that uses Curve V2 to swap between xPYTs/NYTs
+/// @dev Assumes for all Curve pools used, coins[0] is NYT and coins[1] is xPYT.
 contract CurveV2Swapper is Swapper {
     /// -----------------------------------------------------------------------
     /// Library usage
@@ -42,10 +43,8 @@ contract CurveV2Swapper is Swapper {
     /// -----------------------------------------------------------------------
 
     /// @inheritdoc Swapper
-    /// @dev extraArg = (address pool, uint256 i, uint256 j)
+    /// @dev extraArg = (address pool)
     /// pool: The Curve v2 crypto pool to trade with
-    /// i: The index of the input token in the Curve pool
-    /// j: The index of the output token in the Curve pool
     function swapUnderlyingToNyt(SwapArgs calldata args)
         external
         payable
@@ -112,17 +111,17 @@ contract CurveV2Swapper is Swapper {
 
         // swap xPYT to NYT
         {
-            (ICurveCryptoSwap pool, uint256 i, uint256 j) = abi.decode(
+            ICurveCryptoSwap pool = abi.decode(
                 args.extraArgs,
-                (ICurveCryptoSwap, uint256, uint256)
+                (ICurveCryptoSwap)
             );
             // swap and add swap output to result
             tokenAmountOut += _swap(
                 args.xPYT,
                 xPYTMinted,
                 pool,
-                i,
-                j,
+                1,
+                0,
                 args.recipient
             );
         }
@@ -134,10 +133,8 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArg = (address pool, uint256 i, uint256 j)
+    /// @dev extraArg = (address pool)
     /// pool: The Curve v2 crypto pool to trade with
-    /// i: The index of the input token in the Curve pool
-    /// j: The index of the output token in the Curve pool
     function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
         payable
@@ -206,16 +203,16 @@ contract CurveV2Swapper is Swapper {
         // swap NYT to xPYT
         uint256 swapOutput;
         {
-            (ICurveCryptoSwap pool, uint256 i, uint256 j) = abi.decode(
+            ICurveCryptoSwap pool = abi.decode(
                 args.extraArgs,
-                (ICurveCryptoSwap, uint256, uint256)
+                (ICurveCryptoSwap)
             );
             swapOutput = _swap(
                 args.nyt,
                 tokenAmountIn,
                 pool,
-                i,
-                j,
+                0,
+                1,
                 args.usePYT ? address(this) : args.recipient // set recipient to this when using PYT in order to unwrap xPYT
             );
         }
@@ -238,10 +235,8 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArg = (address pool, uint256 i, uint256 j, uint256 swapAmountIn)
+    /// @dev extraArg = (address pool, uint256 swapAmountIn)
     /// pool: The Curve v2 crypto pool to trade with
-    /// i: The index of the input token in the Curve pool
-    /// j: The index of the output token in the Curve pool
     /// swapAmountIn: The amount of NYT to swap to xPYT
     function swapNytToUnderlying(SwapArgs calldata args)
         external
@@ -280,18 +275,16 @@ contract CurveV2Swapper is Swapper {
         uint256 swapAmountIn;
         {
             ICurveCryptoSwap pool;
-            uint256 i;
-            uint256 j;
-            (pool, i, j, swapAmountIn) = abi.decode(
+            (pool, swapAmountIn) = abi.decode(
                 args.extraArgs,
-                (ICurveCryptoSwap, uint256, uint256, uint256)
+                (ICurveCryptoSwap, uint256)
             );
             swapAmountOut = _swap(
                 args.nyt,
                 swapAmountIn,
                 pool,
-                i,
-                j,
+                0,
+                1,
                 address(this)
             );
 
@@ -358,10 +351,8 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArg = (address pool, uint256 i, uint256 j, uint256 swapAmountIn)
+    /// @dev extraArg = (address pool, uint256 swapAmountIn)
     /// pool: The Curve v2 crypto pool to trade with
-    /// i: The index of the input token in the Curve pool
-    /// j: The index of the output token in the Curve pool
     /// swapAmountIn: The amount of NYT to swap to xPYT
     function swapXpytToUnderlying(SwapArgs calldata args)
         external
@@ -417,18 +408,16 @@ contract CurveV2Swapper is Swapper {
         uint256 swapAmountIn;
         {
             ICurveCryptoSwap pool;
-            uint256 i;
-            uint256 j;
-            (pool, i, j, swapAmountIn) = abi.decode(
+            (pool, swapAmountIn) = abi.decode(
                 args.extraArgs,
-                (ICurveCryptoSwap, uint256, uint256, uint256)
+                (ICurveCryptoSwap, uint256)
             );
             swapAmountOut = _swap(
                 args.xPYT,
                 swapAmountIn,
                 pool,
-                i,
-                j,
+                1,
+                0,
                 address(this)
             );
         }
