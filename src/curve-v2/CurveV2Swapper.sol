@@ -7,7 +7,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {IxPYT} from "timeless/external/IxPYT.sol";
 
 import {Swapper} from "../Swapper.sol";
-import {ICurveCryptoSwap} from "./external/ICurveCryptoSwap.sol";
+import {ICurveCryptoSwap2ETH} from "./external/ICurveCryptoSwap2ETH.sol";
 import {ApproveMaxIfNeeded} from "../lib/ApproveMaxIfNeeded.sol";
 
 /// @title CurveV2Swapper
@@ -36,7 +36,7 @@ contract CurveV2Swapper is Swapper {
     /// -----------------------------------------------------------------------
 
     /// @inheritdoc Swapper
-    /// @dev extraArgs = (ICurveCryptoSwap pool)
+    /// @dev extraArgs = (ICurveCryptoSwap2ETH pool)
     /// pool: The Curve v2 crypto pool to trade with
     function swapUnderlyingToNyt(SwapArgs calldata args)
         external
@@ -50,7 +50,7 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArgs = (ICurveCryptoSwap pool)
+    /// @dev extraArgs = (ICurveCryptoSwap2ETH pool)
     /// pool: The Curve v2 crypto pool to trade with
     function swapUnderlyingToXpyt(SwapArgs calldata args)
         external
@@ -64,7 +64,7 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArgs = (ICurveCryptoSwap pool, uint256 swapAmountIn)
+    /// @dev extraArgs = (ICurveCryptoSwap2ETH pool, uint256 swapAmountIn)
     /// pool: The Curve v2 crypto pool to trade with
     /// swapAmountIn: The amount of NYT to swap to xPYT
     function swapNytToUnderlying(SwapArgs calldata args)
@@ -79,7 +79,7 @@ contract CurveV2Swapper is Swapper {
     }
 
     /// @inheritdoc Swapper
-    /// @dev extraArgs = (ICurveCryptoSwap pool, uint256 swapAmountIn)
+    /// @dev extraArgs = (ICurveCryptoSwap2ETH pool, uint256 swapAmountIn)
     /// pool: The Curve v2 crypto pool to trade with
     /// swapAmountIn: The amount of NYT to swap to xPYT
     function swapXpytToUnderlying(SwapArgs calldata args)
@@ -99,7 +99,7 @@ contract CurveV2Swapper is Swapper {
 
     /// @inheritdoc Swapper
     /// @dev extraArgs = (uint256 i, uint256 j, bytes swapExtraArgs)
-    /// swapExtraArgs = (ICurveCryptoSwap pool)
+    /// swapExtraArgs = (ICurveCryptoSwap2ETH pool)
     /// i: The index of the input token in the Curve pool
     /// j: The index of the output token in the Curve pool
     /// pool: The Curve V2 pool to use
@@ -114,7 +114,7 @@ contract CurveV2Swapper is Swapper {
             extraArgs,
             (uint256, uint256, bytes)
         );
-        ICurveCryptoSwap pool = abi.decode(swapExtraArgs, (ICurveCryptoSwap));
+        ICurveCryptoSwap2ETH pool = abi.decode(swapExtraArgs, (ICurveCryptoSwap2ETH));
 
         // perform swap
         tokenIn.approveMaxIfNeeded(address(pool), tokenAmountIn);
@@ -123,7 +123,7 @@ contract CurveV2Swapper is Swapper {
 
     /// @inheritdoc Swapper
     /// @dev extraArgs = (uint256 i, uint256 j, bytes swapExtraArgs)
-    /// swapExtraArgs = (ICurveCryptoSwap pool, uint256 swapAmountIn)
+    /// swapExtraArgs = (ICurveCryptoSwap2ETH pool, uint256 swapAmountIn)
     /// i: The index of the input token in the Curve pool
     /// j: The index of the output token in the Curve pool
     /// pool: The Curve V2 pool to use
@@ -143,10 +143,10 @@ contract CurveV2Swapper is Swapper {
             extraArgs,
             (uint256, uint256, bytes)
         );
-        ICurveCryptoSwap pool;
+        ICurveCryptoSwap2ETH pool;
         (pool, swapAmountIn) = abi.decode(
             swapExtraArgs,
-            (ICurveCryptoSwap, uint256)
+            (ICurveCryptoSwap2ETH, uint256)
         );
 
         // perform swap

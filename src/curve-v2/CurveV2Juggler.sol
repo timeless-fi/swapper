@@ -37,7 +37,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 
 import {FullMath} from "timeless/lib/FullMath.sol";
-import {ICurveCryptoSwap} from "./external/ICurveCryptoSwap.sol";
+import {ICurveCryptoSwap2ETH} from "./external/ICurveCryptoSwap2ETH.sol";
 
 /// @title CurveV2Juggler
 /// @author zefram.eth
@@ -69,7 +69,7 @@ contract CurveV2Juggler {
     /// @return swapAmountIn The amount of xPYT to swap into NYT
     function juggleXpytInput(
         ERC4626 xPYT,
-        ICurveCryptoSwap pool,
+        ICurveCryptoSwap2ETH pool,
         uint256 tokenAmountIn,
         uint256 maxError
     ) external view returns (uint256 swapAmountIn) {
@@ -119,7 +119,7 @@ contract CurveV2Juggler {
     /// @return swapAmountIn The amount of NYT to swap into xPYT
     function juggleNytInput(
         ERC4626 xPYT,
-        ICurveCryptoSwap pool,
+        ICurveCryptoSwap2ETH pool,
         uint256 tokenAmountIn,
         uint256 maxError
     ) external view returns (uint256 swapAmountIn) {
