@@ -10,6 +10,11 @@ Enables swapping between an xPYT/NYT and its underlying asset by swapping via an
     -   [`UniswapV3Juggler.sol`](src/uniswap-v3/UniswapV3Juggler.sol): Given xPYT/NYT input, computes how much to swap to result in an equal amount of PYT & NYT.
     -   [`lib/`](src/uniswap-v3/lib/): Libraries used
         -   [`PoolAddress.sol`](src/uniswap-v3/lib/PoolAddress.sol): Provides functions for deriving a Uniswap V3 pool address from the factory, tokens, and the fee
+-   [`curve-v2/`](src/curve-v2/): Curve V2 support
+    -   [`CurveV2Swapper.sol`](src/curve-v2/CurveV2Swapper.sol): Swapper that uses Curve V2 to swap between xPYTs/NYTs
+    -   [`CurveV2Juggler.sol`](src/curve-v2/CurveV2Juggler.sol): Given xPYT/NYT input, computes how much to swap to result in an equal amount of PYT & NYT.
+-   [`lib/`](src/lib/): Helpful libraries
+    -   [`ApproveMaxIfNeeded.sol`](src/lib/ApproveMaxIfNeeded.sol): Gives max ERC20 approval to the spender if the current allowance is insufficient.
 
 ## Installation
 

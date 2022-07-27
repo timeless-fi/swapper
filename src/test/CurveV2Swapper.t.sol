@@ -4,6 +4,8 @@ pragma solidity ^0.8.4;
 import "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 
+import {Clones} from "openzeppelin-contracts/proxy/Clones.sol";
+
 import {WETH} from "solmate/tokens/WETH.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
@@ -19,26 +21,15 @@ import {NegativeYieldToken} from "timeless/NegativeYieldToken.sol";
 import {PerpetualYieldToken} from "timeless/PerpetualYieldToken.sol";
 import {TestYearnVault} from "timeless/test/mocks/TestYearnVault.sol";
 
-import {IUniswapV3Pool} from "v3-core/interfaces/IUniswapV3Pool.sol";
-import {IUniswapV3Factory} from "v3-core/interfaces/IUniswapV3Factory.sol";
-import {IUniswapV3MintCallback} from "v3-core/interfaces/callback/IUniswapV3MintCallback.sol";
-
-import {IQuoter} from "v3-periphery/interfaces/IQuoter.sol";
-
 import {Swapper} from "../Swapper.sol";
-import {TickMath} from "./lib/TickMath.sol";
-import {UniswapDeployer} from "./utils/UniswapDeployer.sol";
-import {LiquidityAmounts} from "./lib/LiquidityAmounts.sol";
-import {PoolAddress} from "../uniswap-v3/lib/PoolAddress.sol";
-import {UniswapV3Juggler} from "../uniswap-v3/UniswapV3Juggler.sol";
-import {UniswapV3Swapper} from "../uniswap-v3/UniswapV3Swapper.sol";
+import {CurveDeployer} from "./utils/CurveDeployer.sol";
+import {ICurveTokenV5} from "./external/ICurveTokenV5.sol";
+import {CurveV2Juggler} from "../curve-v2/CurveV2Juggler.sol";
+import {CurveV2Swapper} from "../curve-v2/CurveV2Swapper.sol";
+import {ICurveCryptoSwap2ETH} from "../curve-v2/external/ICurveCryptoSwap2ETH.sol";
 
-contract UniswapV3SwapperTest is
-    Test,
-    UniswapDeployer,
-    IUniswapV3MintCallback
-{
-    error Error_NotUniswapV3Pool();
+contract CurveV2SwapperTest is Test, CurveDeployer {
+    using Clones for address;
 
     address constant recipient = address(0x42);
     address constant swapFeeRecipient = address(0x6969);
@@ -46,7 +37,6 @@ contract UniswapV3SwapperTest is
 
     uint8 constant PROTOCOL_FEE = 100; // 10%
     uint8 constant SWAPPER_PROTOCOL_FEE = 10; // 0.1%
-    uint24 constant UNI_FEE = 500;
     uint8 constant DECIMALS = 18;
     uint256 constant ONE = 10**DECIMALS;
     uint256 constant AMOUNT = 100 * ONE;
@@ -59,11 +49,10 @@ contract UniswapV3SwapperTest is
     NegativeYieldToken nyt;
     PerpetualYieldToken pyt;
     IxPYT xPYT;
-    IUniswapV3Factory uniswapV3Factory;
-    IQuoter uniswapV3Quoter;
-    IUniswapV3Pool uniswapV3Pool;
+    ICurveTokenV5 curveLP;
+    ICurveCryptoSwap2ETH curvePool;
     Swapper swapper;
-    UniswapV3Juggler juggler;
+    CurveV2Juggler juggler;
     WETH weth;
 
     function setUp() public {
@@ -93,19 +82,29 @@ contract UniswapV3SwapperTest is
         // deploy xPYT
         xPYT = new TestXPYT(ERC20(address(pyt)));
 
-        // deploy uniswap v3 factory
-        uniswapV3Factory = IUniswapV3Factory(deployUniswapV3Factory());
-
-        // deploy uniswap v3 quoter
-        uniswapV3Quoter = IQuoter(
-            deployUniswapV3Quoter(address(uniswapV3Factory), address(0))
+        // deploy curve pool
+        curveLP = ICurveTokenV5(deployCurveTokenV5().clone());
+        curvePool = ICurveCryptoSwap2ETH(
+            deployCurveCryptoSwap2ETH(weth).clone()
         );
-
-        // deploy uniswap v3 pair
-        uniswapV3Pool = IUniswapV3Pool(
-            uniswapV3Factory.createPool(address(nyt), address(xPYT), UNI_FEE)
+        vm.label(address(curveLP), "CurveTokenV5");
+        vm.label(address(curvePool), "CurveCryptoSwap2ETH");
+        curveLP.initialize("Curve LP", "CRV-LP", curvePool);
+        curvePool.initialize(
+            400000,
+            145000000000000,
+            26000000,
+            45000000,
+            2000000000000,
+            230000000000000,
+            146000000000000,
+            0,
+            600,
+            ONE,
+            address(curveLP),
+            [address(nyt), address(xPYT)],
+            (18 - DECIMALS) + ((18 - DECIMALS) << 8)
         );
-        uniswapV3Pool.initialize(TickMath.getSqrtRatioAtTick(0));
 
         // mint underlying
         underlying.mint(address(this), 3 * AMOUNT);
@@ -121,40 +120,22 @@ contract UniswapV3SwapperTest is
         );
 
         // add liquidity
-        (address token0, address token1) = address(nyt) < address(xPYT)
-            ? (address(nyt), address(xPYT))
-            : (address(xPYT), address(nyt));
-        _addLiquidity(
-            AddLiquidityParams({
-                token0: token0,
-                token1: token1,
-                fee: UNI_FEE,
-                recipient: address(this),
-                tickLower: -10000,
-                tickUpper: 10000,
-                amount0Desired: AMOUNT,
-                amount1Desired: AMOUNT,
-                amount0Min: 0,
-                amount1Min: 0
-            })
-        );
+        nyt.approve(address(curvePool), type(uint256).max);
+        xPYT.approve(address(curvePool), type(uint256).max);
+        curvePool.add_liquidity([AMOUNT, AMOUNT], 0);
 
         // deploy swapper
-        swapper = new UniswapV3Swapper(
+        swapper = new CurveV2Swapper(
             address(0),
             weth,
             Swapper.ProtocolFeeInfo({
                 fee: SWAPPER_PROTOCOL_FEE,
                 recipient: swapFeeRecipient
-            }),
-            address(uniswapV3Factory)
+            })
         );
 
         // deploy juggler
-        juggler = new UniswapV3Juggler(
-            address(uniswapV3Factory),
-            uniswapV3Quoter
-        );
+        juggler = new CurveV2Juggler();
 
         // set token approvals
         underlying.approve(address(swapper), type(uint256).max);
@@ -182,7 +163,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: false,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE)
+            extraArgs: abi.encode(curvePool)
         });
         uint256 tokenAmountOut = swapper.swapUnderlyingToNyt(args);
 
@@ -240,7 +221,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: false,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE)
+            extraArgs: abi.encode(curvePool)
         });
         uint256 tokenAmountOut = swapper.swapUnderlyingToXpyt(args);
 
@@ -298,7 +279,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: true,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE)
+            extraArgs: abi.encode(curvePool)
         });
         uint256 tokenAmountOut = swapper.swapUnderlyingToXpyt(args);
 
@@ -353,9 +334,8 @@ contract UniswapV3SwapperTest is
             (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
             10000;
         uint256 swapAmountIn = juggler.juggleNytInput(
-            ERC20(address(nyt)),
             xPYT,
-            UNI_FEE,
+            curvePool,
             tokenAmountInAfterFee,
             MAX_ERROR
         );
@@ -372,7 +352,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: false,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
+            extraArgs: abi.encode(curvePool, swapAmountIn)
         });
         uint256 tokenAmountOut = swapper.swapNytToUnderlying(args);
 
@@ -421,9 +401,8 @@ contract UniswapV3SwapperTest is
             (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
             10000;
         uint256 swapAmountIn = juggler.juggleXpytInput(
-            ERC20(address(nyt)),
             xPYT,
-            UNI_FEE,
+            curvePool,
             tokenAmountInAfterFee,
             MAX_ERROR
         );
@@ -440,7 +419,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: false,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
+            extraArgs: abi.encode(curvePool, swapAmountIn)
         });
         uint256 tokenAmountOut = swapper.swapXpytToUnderlying(args);
 
@@ -493,9 +472,8 @@ contract UniswapV3SwapperTest is
             (tokenAmountIn * SWAPPER_PROTOCOL_FEE) /
             10000;
         uint256 swapAmountIn = juggler.juggleXpytInput(
-            ERC20(address(nyt)),
             xPYT,
-            UNI_FEE,
+            curvePool,
             tokenAmountInAfterFee,
             MAX_ERROR
         );
@@ -512,7 +490,7 @@ contract UniswapV3SwapperTest is
             useSwapperBalance: false,
             usePYT: true,
             deadline: block.timestamp,
-            extraArgs: abi.encode(UNI_FEE, swapAmountIn)
+            extraArgs: abi.encode(curvePool, swapAmountIn)
         });
         pyt.approve(address(swapper), type(uint256).max);
         uint256 tokenAmountOut = swapper.swapXpytToUnderlying(args);
@@ -570,133 +548,5 @@ contract UniswapV3SwapperTest is
             18,
             "wrap ETH failed"
         );
-    }
-
-    /// -----------------------------------------------------------------------
-    /// Uniswap V3 add liquidity support
-    /// -----------------------------------------------------------------------
-
-    struct MintCallbackData {
-        PoolAddress.PoolKey poolKey;
-        address payer;
-    }
-
-    /// @inheritdoc IUniswapV3MintCallback
-    function uniswapV3MintCallback(
-        uint256 amount0Owed,
-        uint256 amount1Owed,
-        bytes calldata data
-    ) external override {
-        MintCallbackData memory decoded = abi.decode(data, (MintCallbackData));
-        address pool = PoolAddress.computeAddress(
-            address(uniswapV3Factory),
-            decoded.poolKey
-        );
-        if (msg.sender != address(pool)) {
-            revert Error_NotUniswapV3Pool();
-        }
-
-        if (amount0Owed > 0)
-            _pay(
-                ERC20(decoded.poolKey.token0),
-                decoded.payer,
-                msg.sender,
-                amount0Owed
-            );
-        if (amount1Owed > 0)
-            _pay(
-                ERC20(decoded.poolKey.token1),
-                decoded.payer,
-                msg.sender,
-                amount1Owed
-            );
-    }
-
-    struct AddLiquidityParams {
-        address token0;
-        address token1;
-        uint24 fee;
-        address recipient;
-        int24 tickLower;
-        int24 tickUpper;
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-    }
-
-    /// @notice Add liquidity to an initialized pool
-    function _addLiquidity(AddLiquidityParams memory params)
-        internal
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1,
-            IUniswapV3Pool pool
-        )
-    {
-        PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
-            token0: params.token0,
-            token1: params.token1,
-            fee: params.fee
-        });
-
-        pool = IUniswapV3Pool(
-            PoolAddress.computeAddress(address(uniswapV3Factory), poolKey)
-        );
-
-        // compute the liquidity amount
-        {
-            (uint160 sqrtPriceX96, , , , , , ) = pool.slot0();
-            uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(
-                params.tickLower
-            );
-            uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(
-                params.tickUpper
-            );
-
-            liquidity = LiquidityAmounts.getLiquidityForAmounts(
-                sqrtPriceX96,
-                sqrtRatioAX96,
-                sqrtRatioBX96,
-                params.amount0Desired,
-                params.amount1Desired
-            );
-        }
-
-        (amount0, amount1) = pool.mint(
-            params.recipient,
-            params.tickLower,
-            params.tickUpper,
-            liquidity,
-            abi.encode(
-                MintCallbackData({poolKey: poolKey, payer: address(this)})
-            )
-        );
-
-        require(
-            amount0 >= params.amount0Min && amount1 >= params.amount1Min,
-            "Price slippage check"
-        );
-    }
-
-    /// @dev Pays tokens to the recipient using the payer's balance
-    /// @param token The token to pay
-    /// @param payer The address that will pay the tokens
-    /// @param recipient_ The address that will receive the tokens
-    /// @param value The amount of tokens to pay
-    function _pay(
-        ERC20 token,
-        address payer,
-        address recipient_,
-        uint256 value
-    ) internal {
-        if (payer == address(this)) {
-            // pay with tokens already in the contract
-            token.transfer(recipient_, value);
-        } else {
-            // pull payment
-            token.transferFrom(payer, recipient_, value);
-        }
     }
 }
