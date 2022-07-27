@@ -5,7 +5,6 @@ import {BoringOwnable} from "boringsolidity/BoringOwnable.sol";
 
 import {WETH} from "solmate/tokens/WETH.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ReentrancyGuard} from "solmate/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
@@ -13,6 +12,8 @@ import {Gate} from "timeless/Gate.sol";
 import {IxPYT} from "timeless/external/IxPYT.sol";
 import {Multicall} from "timeless/lib/Multicall.sol";
 import {SelfPermit} from "timeless/lib/SelfPermit.sol";
+
+import {ApproveMaxIfNeeded} from "./lib/ApproveMaxIfNeeded.sol";
 
 /// @title Swapper
 /// @author zefram.eth
@@ -32,6 +33,9 @@ abstract contract Swapper is
     /// -----------------------------------------------------------------------
 
     using SafeTransferLib for ERC20;
+    using SafeTransferLib for IxPYT;
+    using ApproveMaxIfNeeded for ERC20;
+    using ApproveMaxIfNeeded for IxPYT;
 
     /// -----------------------------------------------------------------------
     /// Errors
@@ -268,5 +272,418 @@ abstract contract Swapper is
         protocolFeeInfo = protocolFeeInfo_;
 
         emit SetProtocolFee(protocolFeeInfo_);
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Internal functions
+    /// -----------------------------------------------------------------------
+
+    /// @dev Interfaces with the underlying DEX to swap from the underlying to
+    /// a yield token.
+    /// @param tokenIn The input token
+    /// @param tokenAmountIn The token input amount
+    /// @param recipient The address that will receive the token output
+    /// @param extraArgs Used for providing extra input parameters for different protocols/use cases
+    function _swapFromUnderlying(
+        ERC20 tokenIn,
+        uint256 tokenAmountIn,
+        address recipient,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 swapAmountOut);
+
+    /// @dev Interfaces with the underlying DEX to swap from a yield token to
+    /// the underlying.
+    /// @param tokenIn The input token
+    /// @param recipient The address that will receive the token output
+    /// @param extraArgs Used for providing extra input parameters for different protocols/use cases
+    function _swapFromYieldToken(
+        ERC20 tokenIn,
+        address recipient,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 swapAmountIn, uint256 swapAmountOut);
+
+    /// @dev Swaps the underlying asset of an NYT into the NYT
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @param extraArgs Extra input arguments passed to _swapFromUnderlying()
+    /// @return tokenAmountOut The amount of token output
+    function _swapUnderlyingToNyt(
+        SwapArgs calldata args,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 tokenAmountOut) {
+        // check deadline
+        if (block.timestamp > args.deadline) {
+            revert Error_PastDeadline();
+        }
+
+        uint256 xPYTMinted;
+        {
+            // determine token input amount
+            uint256 tokenAmountIn = args.useSwapperBalance
+                ? args.underlying.balanceOf(address(this))
+                : args.tokenAmountIn;
+
+            // transfer underlying from sender
+            if (!args.useSwapperBalance) {
+                args.underlying.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+            }
+
+            // take protocol fee
+            ProtocolFeeInfo memory protocolFeeInfo_ = protocolFeeInfo;
+            if (protocolFeeInfo_.fee > 0) {
+                uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) /
+                    10000;
+                if (feeAmount > 0) {
+                    // deduct fee from token input
+                    tokenAmountIn -= feeAmount;
+
+                    // transfer fee to recipient
+                    args.underlying.safeTransfer(
+                        protocolFeeInfo_.recipient,
+                        feeAmount
+                    );
+                }
+            }
+
+            // add token output from minting to result
+            tokenAmountOut = tokenAmountIn;
+
+            // use underlying to mint xPYT & NYT
+            xPYTMinted = args.xPYT.previewDeposit(tokenAmountIn);
+            args.underlying.approveMaxIfNeeded(
+                address(args.gate),
+                tokenAmountIn
+            );
+            args.gate.enterWithUnderlying(
+                args.recipient, // nytRecipient
+                address(this), // pytRecipient
+                args.vault,
+                args.xPYT,
+                tokenAmountIn
+            );
+        }
+
+        // swap xPYT to NYT
+        // swap and add swap output to result
+        tokenAmountOut += _swapFromUnderlying(
+            args.xPYT,
+            xPYTMinted,
+            args.recipient,
+            extraArgs
+        );
+
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+    }
+
+    /// @dev Swaps the underlying asset of an xPYT into the xPYT
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @param extraArgs Extra input arguments passed to _swapFromUnderlying()
+    /// @return tokenAmountOut The amount of token output
+    function _swapUnderlyingToXpyt(
+        SwapArgs calldata args,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 tokenAmountOut) {
+        // check deadline
+        if (block.timestamp > args.deadline) {
+            revert Error_PastDeadline();
+        }
+
+        uint256 tokenAmountIn;
+        {
+            // determine token input and output amounts
+            tokenAmountIn = args.useSwapperBalance
+                ? args.underlying.balanceOf(address(this))
+                : args.tokenAmountIn;
+
+            // transfer underlying from sender
+            if (!args.useSwapperBalance) {
+                args.underlying.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+            }
+
+            // take protocol fee
+            ProtocolFeeInfo memory protocolFeeInfo_ = protocolFeeInfo;
+            if (protocolFeeInfo_.fee > 0) {
+                uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) /
+                    10000;
+                if (feeAmount > 0) {
+                    // deduct fee from token input
+                    tokenAmountIn -= feeAmount;
+
+                    // transfer fee to recipient
+                    args.underlying.safeTransfer(
+                        protocolFeeInfo_.recipient,
+                        feeAmount
+                    );
+                }
+            }
+
+            // add token output from minting to result
+            tokenAmountOut = args.usePYT
+                ? tokenAmountIn
+                : args.xPYT.previewDeposit(tokenAmountIn);
+
+            // use underlying to mint xPYT & NYT
+            args.underlying.approveMaxIfNeeded(
+                address(args.gate),
+                tokenAmountIn
+            );
+            args.gate.enterWithUnderlying(
+                address(this), // nytRecipient
+                args.recipient, // pytRecipient
+                args.vault,
+                args.usePYT ? IxPYT(address(0)) : args.xPYT,
+                tokenAmountIn
+            );
+        }
+
+        // swap NYT to xPYT
+        uint256 swapOutput = _swapFromUnderlying(
+            args.nyt,
+            tokenAmountIn,
+            args.usePYT ? address(this) : args.recipient, // set recipient to this when using PYT in order to unwrap xPYT
+            extraArgs
+        );
+
+        // unwrap xPYT if necessary
+        if (args.usePYT) {
+            tokenAmountOut += args.xPYT.redeem(
+                swapOutput,
+                args.recipient,
+                address(this)
+            );
+        } else {
+            tokenAmountOut += swapOutput;
+        }
+
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+    }
+
+    /// @dev Swaps an NYT to its underlying asset
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @param extraArgs Extra input arguments passed to _swapFromYieldToken()
+    /// @return tokenAmountOut The amount of token output
+    function _swapNytToUnderlying(
+        SwapArgs calldata args,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 tokenAmountOut) {
+        // check deadline
+        if (block.timestamp > args.deadline) {
+            revert Error_PastDeadline();
+        }
+
+        // transfer token input from sender
+        uint256 tokenAmountIn = args.tokenAmountIn;
+        if (!args.useSwapperBalance) {
+            args.nyt.safeTransferFrom(msg.sender, address(this), tokenAmountIn);
+        }
+
+        // take protocol fee
+        ProtocolFeeInfo memory protocolFeeInfo_ = protocolFeeInfo;
+        if (protocolFeeInfo_.fee > 0) {
+            uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) / 10000;
+            if (feeAmount > 0) {
+                // deduct fee from token input
+                tokenAmountIn -= feeAmount;
+
+                // transfer fee to recipient
+                args.nyt.safeTransfer(protocolFeeInfo_.recipient, feeAmount);
+            }
+        }
+
+        // swap NYT to xPYT
+        (uint256 swapAmountIn, uint256 swapAmountOut) = _swapFromYieldToken(
+            args.nyt,
+            address(this),
+            extraArgs
+        );
+
+        // convert swap output xPYT amount into equivalent PYT amount
+        swapAmountOut = args.xPYT.convertToAssets(swapAmountOut);
+
+        // determine token output amount
+        uint256 remainingAmountIn = args.useSwapperBalance
+            ? args.nyt.balanceOf(address(this))
+            : tokenAmountIn - swapAmountIn;
+        if (remainingAmountIn < swapAmountOut) {
+            // NYT to burn < PYT balance
+            tokenAmountOut = remainingAmountIn;
+        } else {
+            // NYT balance >= PYT to burn
+            tokenAmountOut = swapAmountOut;
+        }
+
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+
+        // burn xPYT & NYT into underlying
+        args.xPYT.approveMaxIfNeeded(
+            address(args.gate),
+            args.xPYT.previewWithdraw(tokenAmountOut)
+        );
+        args.gate.exitToUnderlying(
+            args.recipient,
+            args.vault,
+            args.xPYT,
+            tokenAmountOut
+        );
+
+        // handle leftover tokens
+        if (remainingAmountIn < swapAmountOut) {
+            // NYT to burn < PYT balance
+            // give leftover xPYT to recipient
+            if (args.usePYT) {
+                uint256 maxRedeemAmount = args.xPYT.maxRedeem(address(this));
+                if (maxRedeemAmount != 0) {
+                    args.xPYT.redeem(
+                        args.xPYT.maxRedeem(address(this)),
+                        args.recipient,
+                        address(this)
+                    );
+                }
+            } else {
+                args.xPYT.safeTransfer(
+                    args.recipient,
+                    args.xPYT.balanceOf(address(this))
+                );
+            }
+        } else {
+            // NYT balance >= PYT to burn
+            // give leftover NYT to recipient
+            args.nyt.safeTransfer(
+                args.recipient,
+                args.nyt.balanceOf(address(this))
+            );
+        }
+    }
+
+    /// @dev Swaps an xPYT to its underlying asset
+    /// @param args The input arguments (see SwapArgs definition)
+    /// @param extraArgs Extra input arguments passed to _swapFromYieldToken()
+    /// @return tokenAmountOut The amount of token output
+    function _swapXpytToUnderlying(
+        SwapArgs calldata args,
+        bytes memory extraArgs
+    ) internal virtual returns (uint256 tokenAmountOut) {
+        // check deadline
+        if (block.timestamp > args.deadline) {
+            revert Error_PastDeadline();
+        }
+
+        // transfer token input from sender
+        uint256 tokenAmountIn = args.tokenAmountIn;
+        if (!args.useSwapperBalance) {
+            if (args.usePYT) {
+                // transfer PYT from sender to this
+                args.pyt.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+
+                // convert PYT input into xPYT and update tokenAmountIn
+                args.pyt.approveMaxIfNeeded(address(args.xPYT), tokenAmountIn);
+                tokenAmountIn = args.xPYT.deposit(tokenAmountIn, address(this));
+            } else {
+                args.xPYT.safeTransferFrom(
+                    msg.sender,
+                    address(this),
+                    tokenAmountIn
+                );
+            }
+        }
+
+        // take protocol fee
+        ProtocolFeeInfo memory protocolFeeInfo_ = protocolFeeInfo;
+        if (protocolFeeInfo_.fee > 0) {
+            uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) / 10000;
+            if (feeAmount > 0) {
+                // deduct fee from token input
+                tokenAmountIn -= feeAmount;
+
+                // transfer fee to recipient
+                args.xPYT.safeTransfer(protocolFeeInfo_.recipient, feeAmount);
+            }
+        }
+
+        // swap xPYT to NYT
+        (uint256 swapAmountIn, uint256 swapAmountOut) = _swapFromYieldToken(
+            args.xPYT,
+            address(this),
+            extraArgs
+        );
+
+        // determine token output amount
+        uint256 remainingAmountIn = args.useSwapperBalance
+            ? args.xPYT.balanceOf(address(this))
+            : tokenAmountIn - swapAmountIn;
+        // convert remainingAmountIn from xPYT amount to equivalent PYT amount
+        remainingAmountIn = args.xPYT.previewRedeem(remainingAmountIn);
+        if (remainingAmountIn < swapAmountOut) {
+            // PYT to burn < NYT balance
+            tokenAmountOut = remainingAmountIn;
+        } else {
+            // PYT balance >= NYT to burn
+            tokenAmountOut = swapAmountOut;
+        }
+
+        // check slippage
+        if (tokenAmountOut < args.minAmountOut) {
+            revert Error_InsufficientOutput();
+        }
+
+        // burn xPYT & NYT into underlying
+        args.xPYT.approveMaxIfNeeded(
+            address(args.gate),
+            args.xPYT.previewWithdraw(tokenAmountOut)
+        );
+        args.gate.exitToUnderlying(
+            args.recipient,
+            args.vault,
+            args.xPYT,
+            tokenAmountOut
+        );
+
+        // handle leftover tokens
+        if (remainingAmountIn < swapAmountOut) {
+            // PYT to burn < NYT balance
+            // give leftover NYT to recipient
+            args.nyt.safeTransfer(
+                args.recipient,
+                args.nyt.balanceOf(address(this))
+            );
+        } else {
+            // PYT balance >= NYT to burn
+            // give leftover xPYT to recipient
+            if (args.usePYT) {
+                uint256 maxRedeemAmount = args.xPYT.maxRedeem(address(this));
+                if (maxRedeemAmount != 0) {
+                    args.xPYT.redeem(
+                        args.xPYT.maxRedeem(address(this)),
+                        args.recipient,
+                        address(this)
+                    );
+                }
+            } else {
+                args.xPYT.safeTransfer(
+                    args.recipient,
+                    args.xPYT.balanceOf(address(this))
+                );
+            }
+        }
     }
 }
