@@ -118,7 +118,7 @@ contract CurveV2Swapper is Swapper {
 
         // perform swap
         tokenIn.approveMaxIfNeeded(address(pool), tokenAmountIn);
-        return pool.exchange(i, j, tokenAmountIn, 0, recipient);
+        return pool.exchange(i, j, tokenAmountIn, 0, false, recipient);
     }
 
     /// @inheritdoc Swapper
@@ -143,16 +143,15 @@ contract CurveV2Swapper is Swapper {
             extraArgs,
             (uint256, uint256, bytes)
         );
-        (ICurveCryptoSwap pool, uint256 tokenAmountIn) = abi.decode(
+        ICurveCryptoSwap pool;
+        (pool, swapAmountIn) = abi.decode(
             swapExtraArgs,
             (ICurveCryptoSwap, uint256)
         );
 
         // perform swap
-        tokenIn.approveMaxIfNeeded(address(pool), tokenAmountIn);
-        return (
-            tokenAmountIn,
-            pool.exchange(i, j, tokenAmountIn, 0, recipient)
-        );
+        tokenIn.approveMaxIfNeeded(address(pool), swapAmountIn);
+
+        swapAmountOut = pool.exchange(i, j, swapAmountIn, 0, false, recipient);
     }
 }

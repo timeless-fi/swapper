@@ -7,6 +7,7 @@ interface ICurveCryptoSwap {
         uint256 j,
         uint256 dx,
         uint256 min_dy,
+        bool use_eth,
         address receiver
     ) external returns (uint256);
 
