@@ -7,8 +7,8 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {IxPYT} from "timeless/external/IxPYT.sol";
 
 import {Swapper} from "../Swapper.sol";
-import {ICurveCryptoSwap2ETH} from "./external/ICurveCryptoSwap2ETH.sol";
 import {ApproveMaxIfNeeded} from "../lib/ApproveMaxIfNeeded.sol";
+import {ICurveCryptoSwap2ETH} from "./external/ICurveCryptoSwap2ETH.sol";
 
 /// @title CurveV2Swapper
 /// @author zefram.eth
