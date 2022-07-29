@@ -151,7 +151,6 @@ contract CurveV2Swapper is Swapper {
 
         // perform swap
         tokenIn.approveMaxIfNeeded(address(pool), swapAmountIn);
-
         swapAmountOut = pool.exchange(i, j, swapAmountIn, 0, false, recipient);
     }
 }
