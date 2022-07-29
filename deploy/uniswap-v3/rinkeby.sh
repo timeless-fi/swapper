@@ -6,7 +6,7 @@ export ADDRESSES_FILE=./deployments/rinkeby.json
 export RPC_URL=$RPC_URL_RINKEBY
 
 # load common utilities
-. $(dirname $0)/common.sh
+. $(dirname $0)/../common.sh
 
 # deploy contracts
 univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY $WETH_RINKEBY $PROTOCOL_FEE_RINKEBY $UNIV3_FACTORY)

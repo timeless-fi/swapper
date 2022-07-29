@@ -5,7 +5,15 @@ deploy() {
 	NAME=$1
 	ARGS=${@:2}
 
-	ADDRESS=$(forge create $NAME --json --rpc-url=$RPC_URL --private-key=$PRIVATE_KEY --constructor-args $ARGS | jq -r '.deployedTo')
+	ADDRESS=$(forge create $NAME --verify --etherscan-api-key=$ETHERSCAN_API_KEY --json --rpc-url=$RPC_URL --private-key=$PRIVATE_KEY --constructor-args $ARGS | jq -r '.deployedTo')
+	saveContract "$NAME" "$ADDRESS"
+	echo "$ADDRESS"
+}
+
+deployNoArgs() {
+	NAME=$1
+
+	ADDRESS=$(forge create $NAME --verify --etherscan-api-key=$ETHERSCAN_API_KEY --json --rpc-url=$RPC_URL --private-key=$PRIVATE_KEY | jq -r '.deployedTo')
 	saveContract "$NAME" "$ADDRESS"
 	echo "$ADDRESS"
 }
