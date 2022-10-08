@@ -22,6 +22,8 @@ import {ApproveMaxIfNeeded} from "./lib/ApproveMaxIfNeeded.sol";
 /// @dev Swapper supports two-hop swaps where one of the swaps is an 0x swap between two regular tokens,
 /// which enables swapping any supported token into any xPYT/NYT. Two-hop swaps are done by chaining
 /// two calls together via Multicall and setting the recipient of the first swap to the Swapper.
+/// Note: Swapper should never hold any value (tokens or ETH) except for during a swap. Any leftover value
+/// may be stolen. This is by design.
 abstract contract Swapper is
     Multicall,
     SelfPermit,
@@ -338,7 +340,9 @@ abstract contract Swapper is
                     10000;
                 if (feeAmount > 0) {
                     // deduct fee from token input
-                    tokenAmountIn -= feeAmount;
+                    unchecked {
+                        tokenAmountIn -= feeAmount;
+                    }
 
                     // transfer fee to recipient
                     args.underlying.safeTransfer(
@@ -417,7 +421,9 @@ abstract contract Swapper is
                     10000;
                 if (feeAmount > 0) {
                     // deduct fee from token input
-                    tokenAmountIn -= feeAmount;
+                    unchecked {
+                        tokenAmountIn -= feeAmount;
+                    }
 
                     // transfer fee to recipient
                     args.underlying.safeTransfer(
@@ -496,7 +502,9 @@ abstract contract Swapper is
             uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) / 10000;
             if (feeAmount > 0) {
                 // deduct fee from token input
-                tokenAmountIn -= feeAmount;
+                unchecked {
+                    tokenAmountIn -= feeAmount;
+                }
 
                 // transfer fee to recipient
                 args.nyt.safeTransfer(protocolFeeInfo_.recipient, feeAmount);
@@ -613,7 +621,9 @@ abstract contract Swapper is
             uint256 feeAmount = (tokenAmountIn * protocolFeeInfo_.fee) / 10000;
             if (feeAmount > 0) {
                 // deduct fee from token input
-                tokenAmountIn -= feeAmount;
+                unchecked {
+                    tokenAmountIn -= feeAmount;
+                }
 
                 // transfer fee to recipient
                 args.xPYT.safeTransfer(protocolFeeInfo_.recipient, feeAmount);
