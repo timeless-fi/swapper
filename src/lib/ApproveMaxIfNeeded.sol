@@ -18,11 +18,6 @@ library ApproveMaxIfNeeded {
         uint256 allowance = token.allowance(address(this), spender);
         if (allowance < neededAmount) {
             // need more allowance
-            if (allowance > 0) {
-                // if current allowance if non-zero, reset allowance
-                // to support USDT
-                token.safeApprove(spender, 0);
-            }
             // call approve
             token.safeApprove(spender, type(uint256).max);
         }
