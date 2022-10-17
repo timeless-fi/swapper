@@ -9,7 +9,7 @@ export RPC_URL=$RPC_URL_ARBITRUM
 . $(dirname $0)/../common.sh
 
 # deploy contracts
-univ3_swapper_address=$(deploy UniswapV3Swapper 0x000000000000000000000000000000000000dEaD $WETH_ARBITRUM $PROTOCOL_FEE_ARBITRUM $UNIV3_FACTORY)
+univ3_swapper_address=$(deploy UniswapV3Swapper $ZEROEX_PROXY $WETH_ARBITRUM $PROTOCOL_FEE_ARBITRUM $UNIV3_FACTORY)
 echo "UniswapV3Swapper=$univ3_swapper_address"
 
 send $univ3_swapper_address "transferOwnership(address,bool,bool)" $INITIAL_OWNER_ARBITRUM true false
